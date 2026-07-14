@@ -1,7 +1,7 @@
 FROM php:8.4-fpm-alpine
 
 # Install system dependencies and PHP extensions required by Laravel / Neon
-RUN apk add --no-cache nginx curl bash libpq-dev icu-dev libzip-dev oniguruma-dev \
+RUN apk add --no-cache nginx curl bash coreutils libpq-dev icu-dev libzip-dev oniguruma-dev \
     && docker-php-ext-install pdo pdo_pgsql pcntl posix intl zip
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
