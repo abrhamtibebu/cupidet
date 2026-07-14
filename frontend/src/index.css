@@ -260,4 +260,22 @@ textarea {
   }
 }
 
+@keyframes brand-breathe {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+.brand-breathe {
+  animation: brand-breathe 1.6s ease-in-out infinite;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
 

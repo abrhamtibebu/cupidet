@@ -47,7 +47,7 @@ function Gate() {
     return (
       <div className="app-shell grid min-h-[100dvh] place-items-center">
         <div className="text-center">
-          <BrandIcon size="lg" className="mx-auto mb-4" />
+          <BrandIcon size="splash" className="brand-breathe mx-auto mb-6 drop-shadow-[0_12px_40px_rgba(223,252,1,0.18)]" />
           <p className="text-sm text-muted">Opening {BRAND_NAME}…</p>
         </div>
       </div>

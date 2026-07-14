@@ -1,10 +1,11 @@
-type Size = 'sm' | 'md' | 'lg' | 'hero'
+type Size = 'sm' | 'md' | 'lg' | 'hero' | 'splash'
 
 const iconSize: Record<Size, string> = {
   sm: 'h-8 w-8',
   md: 'h-12 w-12',
   lg: 'h-16 w-16',
   hero: 'h-24 w-24',
+  splash: 'h-40 w-40 sm:h-48 sm:w-48',
 }
 
 const logoSize: Record<Size, string> = {
@@ -12,6 +13,7 @@ const logoSize: Record<Size, string> = {
   md: 'h-12',
   lg: 'h-16',
   hero: 'h-28',
+  splash: 'h-36 sm:h-44',
 }
 
 export const BRAND_NAME = 'Mingle 251'
