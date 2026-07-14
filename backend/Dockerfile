@@ -1,22 +1,19 @@
 FROM php:8.2-fpm-alpine
 
-# Install system dependencies and PHP extensions for PostgreSQL
-RUN apk add --no-cache nginx curl libpq-dev \
-    && docker-php-ext-install pdo pdo_pgsql
+# Install system dependencies, curl, bash, and PHP extensions for PostgreSQL
+RUN apk add --no-cache nginx curl bash libpq-dev \
+    && docker-php-ext-install pdo pdo_pgsql pcntl posix
 
-# Get Heroku's PHP boot scripts (used natively by Render)
-RUN curl -s https://githubusercontent.com -o /usr/local/bin/heroku-php-nginx \
-    && chmod +x /usr/local/bin/heroku-php-nginx
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 COPY . .
 
-# Install Composer dependencies
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-RUN composer install --no-dev --optimize-autoloader
-
-# Make entrypoint executable
-RUN chmod +x entrypoint.sh
+# Install app deps, then the Heroku PHP nginx boot scripts (full package)
+RUN composer install --no-dev --optimize-autoloader --no-interaction \
+    && composer require heroku/heroku-buildpack-php --no-interaction --update-no-dev \
+    && chmod +x entrypoint.sh \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 EXPOSE 10000
 ENTRYPOINT ["./entrypoint.sh"]
