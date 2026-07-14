@@ -1,0 +1,992 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/*
+ * Cupid ET Admin — platform theme (ink + lime)
+ * Layout cues from dating admin dashboards: solid sidebar, soft cards, top search bar.
+ */
+@theme {
+    --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+    --cupid-ink: #0a0a0a;
+    --cupid-lime: #dffc01;
+    --cupid-lime-deep: #c5e000;
+    --cupid-lime-soft: rgba(223, 252, 1, 0.16);
+    --cupid-muted: #6b6b6b;
+    --cupid-surface: #f5f5f5;
+    --cupid-panel: #ffffff;
+    --cupid-line: rgba(10, 10, 10, 0.08);
+    --cupid-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+    --cupid-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.045);
+    --cupid-radius: 1rem;
+}
+
+.fi-body,
+.fi-simple-layout {
+    background:
+        radial-gradient(1100px 420px at 0% -8%, rgba(223, 252, 1, 0.1), transparent 55%),
+        var(--cupid-surface) !important;
+}
+
+.fi-simple-main {
+    border-radius: 1.25rem !important;
+    box-shadow: var(--cupid-shadow) !important;
+    border: 1px solid var(--cupid-line) !important;
+    background: var(--cupid-panel) !important;
+}
+
+/* —— Brand —— */
+.cupid-brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: #fff;
+    line-height: 1.05;
+    max-width: 100%;
+}
+
+.cupid-brand-mark__text {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.fi-sidebar.fi-collapsed .cupid-brand-mark__text {
+    display: none !important;
+}
+
+.cupid-brand-mark__dot {
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 0.55rem;
+    background: var(--cupid-lime);
+    color: #000;
+    display: grid;
+    place-items: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    box-shadow: 0 0 0 3px rgba(223, 252, 1, 0.22);
+}
+
+.cupid-brand-mark__name {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.cupid-brand-mark__sub {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.fi-simple-layout .cupid-brand-mark {
+    color: var(--cupid-ink);
+}
+
+.fi-simple-layout .cupid-brand-mark__sub {
+    color: var(--cupid-muted);
+}
+
+.fi-simple-layout .fi-logo {
+    color: var(--cupid-ink) !important;
+}
+
+.fi-logo {
+    color: #fff !important;
+}
+
+/* —— Solid ink sidebar (layout like reference, Cupid colors) —— */
+.fi-sidebar {
+    background: #0a0a0a !important;
+    border-inline-end: none !important;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.18);
+}
+
+.fi-sidebar-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.fi-sidebar-close-btn,
+.fi-sidebar-close-btn .fi-icon-btn-icon {
+    color: #fff !important;
+}
+
+.fi-topbar-open-sidebar-btn .fi-icon-btn-icon,
+.fi-topbar-close-sidebar-btn .fi-icon-btn-icon,
+.fi-topbar-open-collapse-sidebar-btn .fi-icon-btn-icon,
+.fi-topbar-close-collapse-sidebar-btn .fi-icon-btn-icon {
+    color: var(--cupid-ink) !important;
+}
+
+.fi-sidebar-nav {
+    padding: 1rem 0.85rem 1.5rem !important;
+}
+
+.fi-sidebar-group-label {
+    display: none !important;
+}
+
+.fi-sidebar-item-button {
+    border-radius: 0.85rem !important;
+    color: rgba(255, 255, 255, 0.78) !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.78rem !important;
+}
+
+.fi-sidebar-item-icon {
+    color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.fi-sidebar-item-label {
+    color: inherit !important;
+}
+
+.fi-sidebar-item-button:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-button,
+.fi-sidebar-item-button[aria-current='page'] {
+    background: rgba(223, 252, 1, 0.14) !important;
+    color: var(--cupid-lime) !important;
+    font-weight: 700 !important;
+    box-shadow: inset 3px 0 0 var(--cupid-lime);
+}
+
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon,
+.fi-sidebar-item-button[aria-current='page'] .fi-sidebar-item-icon {
+    color: var(--cupid-lime) !important;
+}
+
+.fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.fi-sidebar-item-button[aria-current='page'] .fi-sidebar-item-label {
+    color: var(--cupid-lime) !important;
+}
+
+.fi-sidebar.fi-collapsed {
+    background: #0a0a0a !important;
+}
+
+/* —— Viewport containment (no sideways scroll) —— */
+html,
+body,
+.fi-body {
+    max-width: 100vw !important;
+    overflow-x: clip !important;
+}
+
+.fi-layout {
+    max-width: 100vw !important;
+    overflow-x: clip !important;
+    width: 100% !important;
+}
+
+.fi-main,
+.fi-main-ctn,
+.fi-page,
+.fi-page-content {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: clip !important;
+}
+
+/* —— Compact brand —— */
+.fi-sidebar-header .fi-logo,
+.fi-sidebar-header .fi-logo-image {
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+.fi-sidebar.fi-collapsed .cupid-brand-mark {
+    gap: 0;
+}
+
+.fi-sidebar.fi-collapsed .cupid-brand-mark__dot {
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+/* —— Top navbar: stays inside the window —— */
+.fi-topbar-ctn {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+}
+
+.fi-topbar {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-bottom: none !important;
+    box-shadow: 0 1px 0 var(--cupid-line);
+    backdrop-filter: blur(10px);
+    min-height: 3.75rem !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding-inline: 0.85rem 1rem !important;
+    gap: 0.65rem !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: visible !important;
+    z-index: 40;
+    position: sticky;
+    top: 0;
+}
+
+.fi-topbar-start {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.fi-topbar-end {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+    margin-inline-end: 0 !important;
+    padding-inline-end: 0.15rem !important;
+    overflow: visible !important;
+    position: relative;
+    z-index: 50;
+}
+
+.fi-global-search-ctn {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: 18rem !important;
+}
+
+.fi-global-search-field,
+.fi-global-search-ctn .fi-input-wrp {
+    border-radius: 9999px !important;
+    background: #f0f0f0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.fi-user-menu {
+    position: relative;
+    z-index: 60;
+    flex-shrink: 0 !important;
+}
+
+/* Floating menus / dropdowns stay inside the viewport */
+[x-cloak] {
+    display: none !important;
+}
+
+.fi-dropdown {
+    position: relative;
+}
+
+.fi-dropdown-panel {
+    z-index: 100 !important;
+    max-width: min(18rem, calc(100vw - 1rem)) !important;
+    box-sizing: border-box !important;
+    /* Never participate in topbar flex layout if float fails briefly */
+    position: absolute !important;
+}
+
+body > .fi-dropdown-panel,
+.fi-dropdown-panel[data-floating-ui-portal],
+.fi-absolute {
+    position: fixed !important;
+}
+
+.fi-modal-window,
+.fi-fo-wizard,
+.fi-ta-col-manager,
+.fi-ta-filters {
+    max-width: min(100vw - 1.5rem, 48rem) !important;
+}
+
+/* Table / action menus shouldn't force horizontal page scroll */
+.fi-ta-ctn,
+.fi-ta-content,
+.fi-ta-main,
+.fi-ta-header-toolbar {
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+.fi-ta-content {
+    overflow-x: auto !important;
+}
+
+.fi-page-header {
+    margin-bottom: 1.25rem !important;
+    padding-inline: 0 !important;
+    max-width: 100% !important;
+}
+
+.fi-header-heading {
+    color: var(--cupid-ink) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em !important;
+}
+
+.fi-header-subheading {
+    color: var(--cupid-muted) !important;
+}
+
+/* —— Soft cards —— */
+.fi-section,
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat,
+.fi-wi-chart,
+.fi-sc-section {
+    border-radius: var(--cupid-radius) !important;
+    border: none !important;
+    background: var(--cupid-panel) !important;
+    box-shadow: var(--cupid-shadow-sm) !important;
+    overflow: visible !important;
+}
+
+.fi-wi-stats-overview-stats-ctn {
+    gap: 1rem !important;
+}
+
+.fi-wi-stats-overview-stat {
+    padding: 1.2rem 1.3rem 0.9rem !important;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.fi-wi-stats-overview-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--cupid-shadow) !important;
+}
+
+.fi-wi-stats-overview-stat-value {
+    color: var(--cupid-ink) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.04em !important;
+    font-size: 1.7rem !important;
+}
+
+.fi-wi-stats-overview-stat-label {
+    color: var(--cupid-muted) !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+}
+
+.fi-wi-stats-overview-stat canvas,
+.fi-wi-chart canvas {
+    filter: drop-shadow(0 8px 14px rgba(197, 224, 0, 0.22));
+}
+
+.fi-btn-primary {
+    background: var(--cupid-ink) !important;
+    color: #fff !important;
+    border-radius: 0.85rem !important;
+    box-shadow: none !important;
+}
+
+.fi-btn-primary:hover {
+    background: #1a1a1a !important;
+}
+
+.fi-btn {
+    border-radius: 0.85rem !important;
+}
+
+.fi-badge {
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+}
+
+.fi-ta-header-cell {
+    background: transparent !important;
+    color: #9b9ba6 !important;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+}
+
+.fi-ta-row:hover {
+    background: rgba(223, 252, 1, 0.08) !important;
+}
+
+.fi-input-wrp,
+.fi-select-input-wrp {
+    border-radius: 0.85rem !important;
+}
+
+/* Custom dashboard cards */
+.cupid-soft-card {
+    background: var(--cupid-panel);
+    border-radius: var(--cupid-radius);
+    box-shadow: var(--cupid-shadow-sm);
+    padding: 1.25rem 1.35rem;
+    height: 100%;
+}
+
+.cupid-soft-card__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--cupid-ink);
+    margin: 0 0 0.15rem;
+}
+
+.cupid-soft-card__subtitle {
+    font-size: 0.78rem;
+    color: var(--cupid-muted);
+    margin: 0 0 1rem;
+}
+
+.cupid-loc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--cupid-line);
+}
+
+.cupid-loc-row:last-child {
+    border-bottom: none;
+}
+
+.cupid-loc-row__left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.cupid-loc-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 9999px;
+    flex-shrink: 0;
+}
+
+.cupid-loc-name {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--cupid-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cupid-loc-count {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--cupid-ink);
+}
+
+.cupid-activity-row,
+.cupid-chat-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--cupid-line);
+}
+
+.cupid-activity-row:last-child,
+.cupid-chat-row:last-child {
+    border-bottom: none;
+}
+
+.cupid-activity-avatar,
+.cupid-chat-avatar {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 9999px;
+    object-fit: cover;
+    background: var(--cupid-lime-soft);
+    flex-shrink: 0;
+}
+
+.cupid-activity-avatar--fallback,
+.cupid-chat-avatar--fallback {
+    display: grid;
+    place-items: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #000;
+    background: var(--cupid-lime);
+}
+
+.cupid-activity-body,
+.cupid-chat-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.cupid-activity-text,
+.cupid-chat-text {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--cupid-ink);
+    line-height: 1.35;
+}
+
+.cupid-activity-text strong,
+.cupid-chat-text strong {
+    font-weight: 700;
+}
+
+.cupid-activity-meta,
+.cupid-chat-meta {
+    margin: 0.2rem 0 0;
+    font-size: 0.72rem;
+    color: var(--cupid-muted);
+}
+
+.cupid-activity-badge {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--cupid-lime-deep);
+    margin-top: 0.45rem;
+    flex-shrink: 0;
+}
+
+.cupid-chat-reply {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--cupid-ink);
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--cupid-lime);
+}
+
+.cupid-chat-reply:hover {
+    color: #000;
+}
+
+.cupid-approvals {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.cupid-approval-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    background: #f4f4f4;
+}
+
+.cupid-approval-item__label {
+    font-size: 0.82rem;
+    color: var(--cupid-muted);
+    font-weight: 500;
+}
+
+.cupid-approval-item__value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cupid-ink);
+    letter-spacing: -0.03em;
+}
+
+.cupid-approval-item__link {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #000;
+    text-decoration: none;
+    background: var(--cupid-lime);
+    padding: 0.35rem 0.7rem;
+    border-radius: 9999px;
+}
+
+.cupid-approval-item__link:hover {
+    background: var(--cupid-lime-deep);
+}
+
+.cupid-side-stack {
+    display: grid;
+    gap: 1rem;
+    height: 100%;
+}
+
+.cupid-promo-card {
+    background: var(--cupid-panel);
+    border-radius: var(--cupid-radius);
+    box-shadow: var(--cupid-shadow-sm);
+    padding: 1.15rem 1.25rem;
+}
+
+.cupid-promo-card__eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--cupid-muted);
+    font-weight: 700;
+    margin: 0 0 0.35rem;
+}
+
+.cupid-promo-card__title {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--cupid-ink);
+}
+
+.cupid-promo-card__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--cupid-ink);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.55rem 0.9rem;
+    border-radius: 9999px;
+    text-decoration: none;
+}
+
+.cupid-promo-card__cta:hover {
+    background: #1a1a1a;
+}
+
+.cupid-map-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.cupid-map-card__count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cupid-muted);
+    background: #f0f0f0;
+    border-radius: 9999px;
+    padding: 0.35rem 0.7rem;
+    white-space: nowrap;
+}
+
+.cupid-map-frame {
+    border-radius: 0.9rem;
+    overflow: hidden;
+    border: 1px solid var(--cupid-line);
+    background: #eef1f4;
+}
+
+.cupid-users-map {
+    width: 100%;
+    height: 320px;
+    z-index: 1;
+}
+
+.cupid-map-marker {
+    background: transparent !important;
+    border: none !important;
+}
+
+.cupid-map-marker__dot {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: var(--cupid-lime);
+    border: 2px solid #0a0a0a;
+    box-shadow: 0 0 0 4px rgba(223, 252, 1, 0.28);
+}
+
+.leaflet-popup-content {
+    margin: 0.55rem 0.7rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    color: #0a0a0a;
+}
+
+.leaflet-popup-content strong {
+    font-weight: 700;
+}
+
+.dark .fi-body,
+.dark .fi-simple-layout {
+    background: #0c0c0c !important;
+}
+
+.dark .fi-topbar {
+    background: rgba(18, 18, 18, 0.92) !important;
+}
+
+.dark .fi-section,
+.dark .fi-ta-ctn,
+.dark .fi-wi-stats-overview-stat,
+.dark .fi-wi-chart,
+.dark .cupid-soft-card,
+.dark .cupid-promo-card {
+    background: #141414 !important;
+    box-shadow: none !important;
+}
+
+.dark .cupid-approval-item {
+    background: #1e1e1e;
+}
+
+.dark .fi-btn-primary {
+    background: var(--cupid-lime) !important;
+    color: #000 !important;
+}
+
+/* —— Responsive layout —— */
+.fi-main-ctn,
+.fi-page > .fi-page-header,
+.fi-page-content,
+.fi-wi-widget {
+    box-sizing: border-box;
+}
+
+.cupid-page-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+}
+
+.cupid-promo-card,
+.cupid-soft-card,
+.cupid-approval-item {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+.cupid-chat-reply {
+    flex-shrink: 0;
+}
+
+@media (max-width: 1023.98px) {
+    .fi-topbar {
+        padding-inline: 0.65rem 0.75rem !important;
+        gap: 0.4rem !important;
+        min-height: 3.5rem !important;
+    }
+
+    .fi-global-search-ctn {
+        max-width: min(14rem, 42vw) !important;
+    }
+
+    .fi-page-header {
+        margin-bottom: 0.85rem !important;
+    }
+
+    .fi-wi-stats-overview-stat {
+        padding: 1rem !important;
+    }
+
+    .fi-wi-stats-overview-stat-value {
+        font-size: 1.4rem !important;
+    }
+
+    .cupid-soft-card,
+    .cupid-promo-card {
+        padding: 1rem 1.05rem;
+    }
+
+    .cupid-users-map {
+        height: 260px;
+    }
+
+    .cupid-side-stack {
+        grid-template-columns: 1fr;
+    }
+
+    .fi-ta-header-toolbar {
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+
+    .fi-simple-main {
+        border-radius: 1rem !important;
+        margin-inline: 0.5rem !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .fi-body {
+        background: var(--cupid-surface) !important;
+    }
+
+    .fi-topbar {
+        padding-inline: 0.5rem 0.55rem !important;
+        gap: 0.3rem !important;
+    }
+
+    .fi-global-search-ctn {
+        max-width: min(10.5rem, 38vw) !important;
+    }
+
+    .fi-global-search-field input,
+    .fi-global-search-ctn input {
+        font-size: 0.85rem !important;
+    }
+
+    .fi-main {
+        padding: 0.65rem !important;
+    }
+
+    .fi-page-content,
+    .fi-wi-widget {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .fi-wi-stats-overview-stats-ctn {
+        gap: 0.75rem !important;
+    }
+
+    .fi-wi-stats-overview-stat-value {
+        font-size: 1.3rem !important;
+    }
+
+    .fi-wi-stats-overview-stat:hover {
+        transform: none;
+    }
+
+    .cupid-map-card__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .cupid-users-map {
+        height: 220px;
+    }
+
+    .cupid-approval-item {
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .cupid-approval-item__link {
+        margin-left: auto;
+    }
+
+    .cupid-chat-row,
+    .cupid-activity-row {
+        gap: 0.55rem;
+    }
+
+    .cupid-chat-reply {
+        align-self: center;
+    }
+
+    .cupid-side-stack {
+        gap: 0.75rem;
+    }
+
+    .fi-section,
+    .fi-ta-ctn,
+    .fi-wi-stats-overview-stat,
+    .fi-wi-chart,
+    .cupid-soft-card,
+    .cupid-promo-card {
+        border-radius: 0.85rem !important;
+    }
+
+    .fi-ta-ctn {
+        overflow: hidden !important;
+    }
+
+    .fi-ta-content {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .fi-ta-table {
+        min-width: 36rem;
+    }
+
+    .fi-header-actions,
+    .fi-ta-actions,
+    .fi-ac-btn-group {
+        flex-wrap: wrap !important;
+        max-width: 100% !important;
+    }
+
+    .fi-modal-window {
+        max-width: calc(100vw - 1rem) !important;
+        margin-inline: 0.5rem !important;
+    }
+
+    .fi-dropdown-panel {
+        max-width: calc(100vw - 0.75rem) !important;
+    }
+
+    .fi-simple-main {
+        margin-inline: 0.35rem !important;
+        padding: 1rem !important;
+        border-radius: 0.9rem !important;
+    }
+
+    .fi-simple-header {
+        padding-inline: 0.25rem !important;
+    }
+}
+
+@media (max-width: 479.98px) {
+    .fi-global-search-ctn {
+        display: none !important;
+    }
+
+    .cupid-promo-card__title {
+        font-size: 0.92rem;
+    }
+
+    .cupid-users-map {
+        height: 200px;
+    }
+
+    .fi-wi-stats-overview-stat-label {
+        font-size: 0.72rem !important;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1023.98px) {
+    .cupid-side-stack {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .cupid-page-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .fi-main {
+        padding: 1rem 1.25rem 1.5rem !important;
+    }
+
+    .cupid-page-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cupid-users-map {
+        height: 320px;
+    }
+}

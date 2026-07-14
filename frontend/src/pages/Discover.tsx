@@ -1,0 +1,313 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import type { DiscoverCard, Interest } from '../types'
+import { ProfileCard } from '../components/ProfileCard'
+import { MatchModal } from '../components/MatchModal'
+import { ReportSheet } from '../components/ReportSheet'
+import { FiltersSheet, type FilterState } from '../components/FiltersSheet'
+import { BottomNav } from '../components/BottomNav'
+import { IconFilters } from '../components/Icons'
+import { telegramHaptic } from '../lib/telegram'
+import { resolveMediaUrl } from '../lib/media'
+
+type Tab = 'all' | 'online' | 'location'
+
+export function DiscoverPage() {
+  const { user, refresh } = useAuth()
+  const navigate = useNavigate()
+  const [cards, setCards] = useState<DiscoverCard[]>([])
+  const [history, setHistory] = useState<DiscoverCard[]>([])
+  const [tab, setTab] = useState<Tab>('all')
+  const [loading, setLoading] = useState(true)
+  const [matchUser, setMatchUser] = useState<DiscoverCard | null>(null)
+  const [matchId, setMatchId] = useState<number | null>(null)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [error, setError] = useState('')
+  const [rewinding, setRewinding] = useState(false)
+  const [filterInterests, setFilterInterests] = useState<Interest[]>([])
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.discover()
+      setCards(res.data as DiscoverCard[])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  useEffect(() => {
+    api.interests().then((res) => setFilterInterests(res.interests)).catch(() => undefined)
+  }, [])
+
+  const cityFilter =
+    user?.preferences?.preferred_location?.trim() || user?.profile?.location?.trim() || ''
+
+  const filtered = useMemo(() => {
+    if (tab === 'location') {
+      if (!cityFilter) return cards
+      return cards.filter((c) => (c.location || '').toLowerCase() === cityFilter.toLowerCase())
+    }
+    if (tab === 'online') {
+      return cards.filter((c) => c.is_online)
+    }
+    return cards
+  }, [cards, tab, cityFilter])
+
+  const current = filtered[0]
+  const canRewind = history.length > 0 && !rewinding
+
+  const advance = (card: DiscoverCard) => {
+    setHistory((prev) => [...prev, card])
+    setCards((prev) => prev.filter((c) => c.id !== card.id))
+  }
+
+  const react = async (type: 'like' | 'super') => {
+    if (!current) return
+    const liked = current
+    telegramHaptic(type === 'super' ? 'heavy' : 'medium')
+    advance(liked)
+    try {
+      const res = await api.like(liked.id, type)
+      if (res.matched) {
+        telegramHaptic('success')
+        setHistory((prev) => prev.filter((c) => c.id !== liked.id))
+        setMatchUser((res.other_user as DiscoverCard) || liked)
+        setMatchId(res.match?.id ?? null)
+      }
+    } catch {
+      /* keep browsing */
+    }
+  }
+
+  const onPass = async () => {
+    if (!current) return
+    const passed = current
+    telegramHaptic('light')
+    advance(passed)
+    try {
+      await api.pass(passed.id)
+    } catch {
+      setHistory((prev) => prev.filter((c) => c.id !== passed.id))
+      setCards((prev) => [passed, ...prev.filter((c) => c.id !== passed.id)])
+    }
+  }
+
+  const onRewind = async () => {
+    if (!canRewind) return
+    setRewinding(true)
+    setError('')
+    const localCard = history[history.length - 1]
+    try {
+      const res = await api.rewind()
+      const restored = (res.user as DiscoverCard | null | undefined) || localCard
+      setHistory((prev) => prev.slice(0, -1))
+      setCards((prev) => {
+        const without = prev.filter((c) => c.id !== restored.id)
+        return [restored, ...without]
+      })
+      setTab('all')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Nothing to rewind')
+    } finally {
+      setRewinding(false)
+    }
+  }
+
+  const onReportSubmit = async (reason: string, block: boolean) => {
+    if (!current) return
+    const target = current
+    setReportOpen(false)
+    advance(target)
+    try {
+      await api.report(target.id, reason)
+      if (block) await api.block(target.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Report failed')
+    }
+  }
+
+  const saveFilters = async (filters: FilterState) => {
+    setFiltersOpen(false)
+    try {
+      await api.saveProfile({
+        name: user?.profile?.name || user?.first_name || 'User',
+        birth_date: user?.profile?.birth_date?.slice(0, 10),
+        gender: user?.profile?.gender || 'other',
+        location: user?.profile?.location,
+        latitude: user?.profile?.latitude,
+        longitude: user?.profile?.longitude,
+        bio: user?.profile?.bio,
+        relationship_goal: filters.relationship_goal || user?.profile?.relationship_goal,
+        interest_ids: user?.interests?.map((i) => i.id) || [],
+        preferred_gender: filters.preferred_gender,
+        min_age: filters.min_age,
+        max_age: filters.max_age,
+        preferred_location: filters.preferred_location || null,
+        max_distance_km: filters.max_distance_km,
+        preferred_languages: filters.preferred_languages || [],
+        preferred_interest_ids: filters.preferred_interest_ids || [],
+      })
+      await refresh()
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save filters')
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-full bg-panel p-1">
+          {(
+            [
+              ['all', 'All'],
+              ['online', 'Online'],
+              ['location', cityFilter ? cityFilter.split(' ')[0] : 'Location'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`nav-pill ${tab === id ? 'nav-pill-active' : ''}`}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="grid h-10 w-10 place-items-center rounded-full bg-panel text-lime"
+          aria-label="Filters"
+        >
+          <IconFilters size={20} />
+        </button>
+      </header>
+
+      {error && <p className="mb-3 text-sm text-red-300">{error}</p>}
+
+      {loading ? (
+        <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel text-muted">Loading profiles…</div>
+      ) : current ? (
+        <div className="relative">
+          {/* Next card sits under the top one and rises into place */}
+          {filtered[1] && (
+            <motion.div
+              key={`next-${filtered[1].id}`}
+              className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[64dvh] overflow-hidden rounded-[28px] will-change-transform [transform:translateZ(0)]"
+              initial={false}
+              animate={{ scale: 0.965, opacity: 0.85, y: 12 }}
+              transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <img
+                src={resolveMediaUrl(
+                  filtered[1].photos?.[0]?.image_url || filtered[1].photo_url,
+                  'https://i.pravatar.cc/800?u=next',
+                )}
+                alt=""
+                className="h-full w-full object-cover"
+                decoding="async"
+              />
+              <div className="absolute inset-0 bg-black/25" />
+            </motion.div>
+          )}
+          <AnimatePresence mode="sync" initial={false}>
+            <ProfileCard
+              key={current.id}
+              card={current}
+              onLike={() => void react('like')}
+              onSuperLike={() => void react('super')}
+              onPass={() => void onPass()}
+              onRewind={() => void onRewind()}
+              canRewind={canRewind}
+              onReport={() => setReportOpen(true)}
+            />
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel px-6 text-center">
+          <div>
+            <p className="text-xl font-bold">No more profiles</p>
+            <p className="mt-2 text-sm text-muted">Check back later, rewind, or adjust your filters.</p>
+            <div className="mt-5 flex justify-center gap-3">
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40"
+                disabled={!canRewind}
+                onClick={() => void onRewind()}
+              >
+                Rewind
+              </button>
+              <button type="button" className="btn-lime px-5 py-3" onClick={() => void load()}>
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <MatchModal
+        open={!!matchUser}
+        matchUser={matchUser}
+        myName={user?.profile?.name || user?.first_name || 'You'}
+        myPhoto={
+          user?.photos?.find((p) => p.is_primary)?.image_url ||
+          user?.photos?.[0]?.image_url ||
+          user?.photo_url
+        }
+        onContinue={() => {
+          setMatchUser(null)
+          setMatchId(null)
+        }}
+        onChat={(initialMessage) => {
+          if (matchId) {
+            navigate(`/chat/${matchId}`, initialMessage ? { state: { initialMessage } } : undefined)
+          } else {
+            navigate('/messages')
+          }
+          setMatchUser(null)
+        }}
+      />
+
+      <ReportSheet
+        open={reportOpen}
+        name={current?.name}
+        onClose={() => setReportOpen(false)}
+        onSubmit={(reason, block) => void onReportSubmit(reason, block)}
+      />
+
+      <FiltersSheet
+        open={filtersOpen}
+        userGender={user?.profile?.gender || 'other'}
+        interests={filterInterests}
+        initial={{
+          preferred_gender: user?.preferences?.preferred_gender || 'any',
+          min_age: Math.max(18, user?.preferences?.min_age || 18),
+          max_age: Math.max(18, user?.preferences?.max_age || 40),
+          preferred_location: user?.preferences?.preferred_location || '',
+          relationship_goal: user?.profile?.relationship_goal || 'casual',
+          max_distance_km: user?.preferences?.max_distance_km || 50,
+          preferred_languages: user?.preferences?.preferred_languages || [],
+          preferred_interest_ids: user?.preferences?.preferred_interest_ids || [],
+        }}
+        onClose={() => setFiltersOpen(false)}
+        onSave={(f) => void saveFilters(f)}
+      />
+
+      <BottomNav />
+    </div>
+  )
+}
