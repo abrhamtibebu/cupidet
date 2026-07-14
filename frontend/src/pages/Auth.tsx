@@ -20,9 +20,9 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [tgLoading, setTgLoading] = useState(false)
   const [form, setForm] = useState({
-    username: 'demo',
-    password: 'demo1234',
-    password_confirmation: 'demo1234',
+    username: '',
+    password: '',
+    password_confirmation: '',
     first_name: '',
     last_name: '',
   })
@@ -73,15 +73,6 @@ export function AuthPage() {
     } finally {
       setTgLoading(false)
     }
-  }
-
-  const fillDemo = () => {
-    setMode('signin')
-    setForm((prev) => ({
-      ...prev,
-      username: 'demo',
-      password: 'demo1234',
-    }))
   }
 
   return (
@@ -230,16 +221,6 @@ export function AuthPage() {
             {mode === 'signin' ? 'Sign in' : 'Create account'}
           </LoadingButton>
         </form>
-
-        {mode === 'signin' && (
-          <button
-            type="button"
-            onClick={fillDemo}
-            className="mt-4 w-full rounded-2xl border border-white/10 bg-panel px-4 py-3 text-sm text-white/80"
-          >
-            Use demo account · <span className="text-lime">demo / demo1234</span>
-          </button>
-        )}
       </motion.div>
     </div>
   )

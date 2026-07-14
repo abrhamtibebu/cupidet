@@ -30,7 +30,7 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:6'],
         ]);
 
-        $user = $auth->loginDemo($data['username'], $data['password']);
+        $user = $auth->loginWithPassword($data['username'], $data['password']);
 
         return $this->tokenResponse($user);
     }
@@ -44,7 +44,7 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:6', 'confirmed'],
         ]);
 
-        $user = $auth->registerDemo($data);
+        $user = $auth->registerWithPassword($data);
 
         return $this->tokenResponse($user, 201);
     }

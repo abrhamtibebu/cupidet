@@ -25,10 +25,8 @@ class TelegramAuthService
         }
     }
 
-    public function loginDemo(string $username, string $password): User
+    public function loginWithPassword(string $username, string $password): User
     {
-        $this->assertDemoAuthEnabled();
-
         $user = User::query()
             ->whereRaw('LOWER(username) = ?', [strtolower($username)])
             ->first();
@@ -50,10 +48,8 @@ class TelegramAuthService
         return $user;
     }
 
-    public function registerDemo(array $payload): User
+    public function registerWithPassword(array $payload): User
     {
-        $this->assertDemoAuthEnabled();
-
         $username = strtolower(trim((string) $payload['username']));
         if (User::query()->whereRaw('LOWER(username) = ?', [$username])->exists()) {
             throw ValidationException::withMessages([
