@@ -59,7 +59,7 @@ export function SettingsPage() {
   }
 
   const deleteAccount = async () => {
-    if (!window.confirm('Delete your Cupid ET account permanently? This cannot be undone.')) return
+    if (!window.confirm('Delete your Mingle 251 account permanently? This cannot be undone.')) return
     setDeleting(true)
     setError('')
     try {

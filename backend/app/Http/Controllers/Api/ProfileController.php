@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Interest;
 use App\Models\ProfilePrompt;
+use Database\Seeders\InterestSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,10 @@ class ProfileController extends Controller
 
     public function interests(): JsonResponse
     {
+        if (! Interest::query()->exists()) {
+            (new InterestSeeder)->run();
+        }
+
         return response()->json([
             'interests' => Interest::query()->orderBy('name')->get(),
         ]);

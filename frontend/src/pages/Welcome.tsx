@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion'
+import { BrandLogo, BRAND_NAME } from '../components/Brand'
 
 type Props = {
   onStart: () => void
@@ -126,7 +127,8 @@ export function WelcomeScreen({ onStart }: Props) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(223,252,1,0.08),_transparent_55%)]" />
 
       <header className="relative z-10 flex items-center justify-between pt-2">
-        <p className="text-sm font-semibold tracking-wide text-white/40">Cupid ET</p>
+        <BrandLogo size="sm" className="opacity-90" />
+        <span className="sr-only">{BRAND_NAME}</span>
         {!isLast && (
           <button
             type="button"

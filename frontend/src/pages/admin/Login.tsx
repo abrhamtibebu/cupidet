@@ -30,11 +30,16 @@ export function AdminLoginPage() {
     <div className="admin-login">
       <form className="admin-login-card" onSubmit={onSubmit}>
         <div className="admin-brand admin-brand-login">
-          <span className="admin-brand-dot" aria-hidden>
-            C
-          </span>
+          <img
+            src="/mingle_251_icon.png"
+            alt=""
+            className="admin-brand-dot"
+            width={40}
+            height={40}
+            style={{ objectFit: 'contain', padding: 0, background: 'transparent' }}
+          />
           <span>
-            <span className="admin-brand-name">Cupid ET</span>
+            <span className="admin-brand-name">Mingle 251</span>
             <span className="admin-brand-sub">Admin console</span>
           </span>
         </div>
@@ -74,7 +79,7 @@ export function AdminLoginPage() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 
-        <p className="admin-login-hint">Use your Cupid admin credentials</p>
+        <p className="admin-login-hint">Use your Mingle 251 admin credentials</p>
       </form>
     </div>
   )

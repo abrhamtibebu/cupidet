@@ -8,6 +8,7 @@ import {
   openTelegramMiniApp,
   telegramHaptic,
 } from '../lib/telegram'
+import { BrandLogo, BRAND_NAME } from '../components/Brand'
 import { LoadingButton } from '../components/Loading'
 import type { User } from '../types'
 
@@ -60,7 +61,7 @@ export function AuthPage() {
       if (!initData) {
         // Browser / no Mini App session — send them into Telegram
         openTelegramMiniApp()
-        setError('Open Cupid ET from Telegram to finish signing in.')
+        setError(`Open ${BRAND_NAME} from Telegram to finish signing in.`)
         return
       }
       telegramHaptic('medium')
@@ -79,10 +80,7 @@ export function AuthPage() {
     <div className="app-shell flex min-h-[100dvh] flex-col justify-center pb-10">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[22px] bg-lime text-3xl text-ink">
-            ♥
-          </div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-lime">Cupid ET</p>
+          <BrandLogo size="lg" className="mx-auto mb-5" />
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
             {mode === 'signin' ? 'Welcome back' : 'Create account'}
           </h1>

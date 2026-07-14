@@ -10,7 +10,7 @@ export function UnderageScreen({ onOk }: Props) {
       </div>
       <h1 className="mt-5 text-2xl font-bold tracking-tight">You’re not old enough</h1>
       <p className="mt-3 max-w-[32ch] text-sm leading-relaxed text-muted">
-        Cupid ET is only for people 18 and older. No account was created.
+        Mingle 251 is only for people 18 and older. No account was created.
       </p>
       <button type="button" className="btn-lime mt-8 px-8 py-3.5" onClick={onOk}>
         OK

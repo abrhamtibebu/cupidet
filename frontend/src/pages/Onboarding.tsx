@@ -45,6 +45,7 @@ export function OnboardingPage() {
   const { refresh, user, logout } = useAuth()
   const [step, setStep] = useState(0)
   const [interests, setInterests] = useState<Interest[]>([])
+  const [interestsLoading, setInterestsLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const syncedPhoto = telegramPhotoUrl(user)
@@ -69,7 +70,22 @@ export function OnboardingPage() {
   })
 
   useEffect(() => {
-    api.interests().then((res) => setInterests(res.interests)).catch(() => undefined)
+    let alive = true
+    setInterestsLoading(true)
+    api
+      .interests()
+      .then((res) => {
+        if (alive) setInterests(res.interests)
+      })
+      .catch(() => {
+        if (alive) setInterests([])
+      })
+      .finally(() => {
+        if (alive) setInterestsLoading(false)
+      })
+    return () => {
+      alive = false
+    }
   }, [])
 
   const title = useMemo(() => steps[step], [step])
@@ -429,18 +445,40 @@ export function OnboardingPage() {
           {step === 2 && (
             <div className="space-y-4">
               <p className="text-sm text-muted">Pick up to 8 interests.</p>
-              <div className="flex flex-wrap gap-2">
-                {interests.map((interest) => (
+              {interestsLoading ? (
+                <p className="text-sm text-muted">Loading interests…</p>
+              ) : interests.length === 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-red-300">Couldn’t load interests. Check your connection and try again.</p>
                   <button
-                    key={interest.id}
                     type="button"
-                    className={`chip ${form.interest_ids.includes(interest.id) ? 'chip-active' : ''}`}
-                    onClick={() => toggleInterest(interest.id)}
+                    className="btn-lime w-full py-3.5"
+                    onClick={() => {
+                      setInterestsLoading(true)
+                      api
+                        .interests()
+                        .then((res) => setInterests(res.interests))
+                        .catch(() => setInterests([]))
+                        .finally(() => setInterestsLoading(false))
+                    }}
                   >
-                    {interest.name}
+                    Retry
                   </button>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {interests.map((interest) => (
+                    <button
+                      key={interest.id}
+                      type="button"
+                      className={`chip ${form.interest_ids.includes(interest.id) ? 'chip-active' : ''}`}
+                      onClick={() => toggleInterest(interest.id)}
+                    >
+                      {interest.name}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 className="btn-lime w-full py-3.5"

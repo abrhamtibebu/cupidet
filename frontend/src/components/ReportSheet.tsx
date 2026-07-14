@@ -34,7 +34,7 @@ export function ReportSheet({ open, name, onClose, onSubmit }: Props) {
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
             <h2 className="text-xl font-bold">Report {name || 'user'}</h2>
-            <p className="mt-1 text-sm text-muted">Help keep Cupid ET safe for the Habesha community.</p>
+            <p className="mt-1 text-sm text-muted">Help keep Mingle 251 safe for the Habesha community.</p>
             <div className="mt-4 space-y-2">
               {REASONS.map((reason) => (
                 <button

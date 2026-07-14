@@ -98,7 +98,7 @@ export function BirthDateFields({ value, onChange }: Props) {
       <div>
         <p className="text-sm font-semibold text-white">Birthday</p>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Enter the day, month, and year you were born. You must be 18 or older to join Cupid ET.
+          Enter the day, month, and year you were born. You must be 18 or older to join Mingle 251.
         </p>
       </div>
 
@@ -169,7 +169,7 @@ export function BirthDateFields({ value, onChange }: Props) {
         <p className={`text-sm font-semibold ${oldEnough ? 'text-lime' : 'text-red-300'}`}>
           {oldEnough
             ? `You’re ${age} — you can continue.`
-            : `You’re ${age}. Cupid ET is only for people 18 and older.`}
+            : `You’re ${age}. Mingle 251 is only for people 18 and older.`}
         </p>
       )}
     </div>

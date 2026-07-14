@@ -19,20 +19,12 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $interests = [
-            'Music', 'Travel', 'Movies', 'Sports', 'Food',
-            'Business', 'Technology', 'Fitness', 'Art', 'Coffee',
-            'Photography', 'Dancing', 'Reading', 'Fashion', 'Gaming',
-        ];
-
-        foreach ($interests as $name) {
-            Interest::query()->firstOrCreate(['name' => $name]);
-        }
+        $this->call(InterestSeeder::class);
 
         Admin::query()->updateOrCreate(
             ['email' => 'admin@cupidet.com'],
             [
-                'name' => 'Cupid Admin',
+                'name' => 'Mingle 251 Admin',
                 'password' => Hash::make('password'),
             ]
         );

@@ -112,7 +112,7 @@ export function MatchModal({ open, matchUser, myPhoto, myName = 'You', onChat, o
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.14, duration: 0.18 }}
             >
-              Cupid ET
+              Mingle 251
             </motion.p>
 
             <motion.h2

@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useState, type ReactNode } from 'react'
 import { AuthProvider } from './components/AuthProvider'
+import { BrandIcon, BRAND_NAME } from './components/Brand'
 import { TelegramBackButton } from './components/TelegramBackButton'
 import { useAuth } from './lib/auth'
 import { NavBadgeProvider } from './lib/navBadges'
@@ -46,8 +47,8 @@ function Gate() {
     return (
       <div className="app-shell grid min-h-[100dvh] place-items-center">
         <div className="text-center">
-          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-lime text-2xl text-ink">♥</div>
-          <p className="text-sm text-muted">Opening Cupid ET…</p>
+          <BrandIcon size="lg" className="mx-auto mb-4" />
+          <p className="text-sm text-muted">Opening {BRAND_NAME}…</p>
         </div>
       </div>
     )

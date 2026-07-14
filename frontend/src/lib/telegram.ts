@@ -108,7 +108,7 @@ export function initTelegram(): boolean {
         backButton.mount()
       }
 
-      // Align Telegram chrome with Cupid ET brand
+      // Align Telegram chrome with Mingle 251 brand
       if (miniApp.setHeaderColor.isAvailable()) miniApp.setHeaderColor('#0b0b0b')
       if (miniApp.setBackgroundColor.isAvailable()) miniApp.setBackgroundColor('#000000')
       if (miniApp.setBottomBarColor.isAvailable()) miniApp.setBottomBarColor('#000000')

@@ -17,7 +17,7 @@ export function AdminMatchesPage() {
       <header className="admin-page-head">
         <div>
           <h1>Matches</h1>
-          <p className="admin-muted">Successful connections across Cupid ET.</p>
+          <p className="admin-muted">Successful connections across Mingle 251.</p>
         </div>
       </header>
       {error ? <p className="admin-error">{error}</p> : null}

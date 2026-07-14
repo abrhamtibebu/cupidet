@@ -22,9 +22,16 @@ export function AdminLayout() {
     <div className="admin-shell">
       <aside className={`admin-sidebar ${open ? 'is-open' : ''}`}>
         <div className="admin-brand">
-          <span className="admin-brand-dot">C</span>
+          <img
+            src="/mingle_251_icon.png"
+            alt=""
+            className="admin-brand-dot"
+            width={36}
+            height={36}
+            style={{ objectFit: 'contain', padding: 0, background: 'transparent' }}
+          />
           <span>
-            <span className="admin-brand-name">Cupid ET</span>
+            <span className="admin-brand-name">Mingle 251</span>
             <span className="admin-brand-sub">Admin</span>
           </span>
         </div>

@@ -28,8 +28,9 @@ php artisan config:clear
 php artisan config:cache
 php artisan route:cache
 
-# Run database migrations automatically on startup
+# Run database migrations + seed catalog data (interests, etc.)
 php artisan migrate --force
+php artisan db:seed --class=InterestSeeder --force
 
 # Start PHP-FPM execution manager in the background
 php-fpm -D
