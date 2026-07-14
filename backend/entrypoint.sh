@@ -1,8 +1,11 @@
 #!/bin/sh
 
-# Alpine / busybox: ensure mktemp has a valid temp dir (fixes "mktemp: : Invalid argument")
+# Alpine / busybox: ensure mktemp has a valid temp dir
 export TMPDIR="${TMPDIR:-/tmp}"
 mkdir -p "$TMPDIR"
+
+# Render expects Nginx to bind 0.0.0.0:$PORT (default 10000)
+export PORT="${PORT:-10000}"
 
 # Ensure necessary Nginx running directories exist inside Alpine
 mkdir -p /var/lib/nginx/tmp/client_body
