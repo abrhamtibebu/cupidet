@@ -206,12 +206,48 @@ class TelegramAuthService
 
     private function importTelegramPhoto(User $user, array $telegramUser): void
     {
-        // Never replace photos the user already uploaded in-app
-        if ($user->photos()->whereNotNull('path')->exists()) {
+        $disk = config('filesystems.cupid_disk', 'public');
+
+        // Drop Telegram-synced rows whose files vanished (Render ephemeral disk)
+        $user->photos()
+            ->whereNotNull('path')
+            ->where('path', 'like', '%telegram_%')
+            ->get()
+            ->each(function ($photo) use ($disk) {
+                try {
+                    if (! Storage::disk($disk)->exists($photo->path)) {
+                        $photo->delete();
+                    }
+                } catch (\Throwable) {
+                    $photo->delete();
+                }
+            });
+
+        // Keep real in-app uploads that are still on disk
+        $hasLocalUpload = $user->photos()
+            ->whereNotNull('path')
+            ->where('path', 'not like', '%telegram_%')
+            ->get()
+            ->contains(function ($photo) use ($disk) {
+                try {
+                    return Storage::disk($disk)->exists($photo->path);
+                } catch (\Throwable) {
+                    return false;
+                }
+            });
+
+        if ($hasLocalUpload) {
             return;
         }
 
-        $photoUrl = $telegramUser['photo_url'] ?? $user->photo_url;
+        // Prefer Telegram CDN URL from Mini App (renders without our storage)
+        $photoUrl = $telegramUser['photo_url'] ?? null;
+        if (! is_string($photoUrl) || $photoUrl === '') {
+            $photoUrl = is_string($user->photo_url) && str_starts_with($user->photo_url, 'http')
+                && ! str_contains($user->photo_url, '/storage/')
+                ? $user->photo_url
+                : null;
+        }
         if (! $photoUrl) {
             $photoUrl = $this->fetchTelegramProfilePhotoUrl((int) ($telegramUser['id'] ?? $user->telegram_id));
         }
@@ -220,15 +256,21 @@ class TelegramAuthService
             return;
         }
 
+        // Always keep CDN/remote URL on the user for reliable client rendering
         $user->forceFill(['photo_url' => $photoUrl])->save();
 
-        // Prefer downloading into local storage so discover cards stay stable
+        // Prefer downloading into app storage so discover stays stable offline of Telegram CDN
         $stored = $this->downloadRemotePhoto($user, $photoUrl);
 
         if ($stored) {
             $user->photos()->whereNull('path')->delete();
-            $already = $user->photos()->where('path', $stored['path'])->exists();
-            if (! $already) {
+            $photo = $user->photos()->where('path', $stored['path'])->first();
+            if ($photo) {
+                $photo->update([
+                    'image_url' => $stored['url'],
+                    'status' => config('cupid.auto_approve_photos', true) ? 'approved' : $photo->status,
+                ]);
+            } else {
                 $user->photos()->update(['is_primary' => false]);
                 $user->photos()->create([
                     'image_url' => $stored['url'],
@@ -241,16 +283,23 @@ class TelegramAuthService
             return;
         }
 
-        if (! $user->photos()->where('image_url', $photoUrl)->exists()) {
-            $user->photos()->whereNull('path')->delete();
-            $user->photos()->update(['is_primary' => false]);
-            $user->photos()->create([
-                'image_url' => $photoUrl,
-                'path' => null,
-                'is_primary' => true,
-                'status' => 'approved',
-            ]);
+        // Download failed — still show the Telegram CDN photo
+        $user->photos()->whereNull('path')->delete();
+        $existing = $user->photos()->where('image_url', $photoUrl)->first();
+        if ($existing) {
+            $user->photos()->where('id', '!=', $existing->id)->update(['is_primary' => false]);
+            $existing->update(['is_primary' => true, 'status' => 'approved']);
+
+            return;
         }
+
+        $user->photos()->update(['is_primary' => false]);
+        $user->photos()->create([
+            'image_url' => $photoUrl,
+            'path' => null,
+            'is_primary' => true,
+            'status' => 'approved',
+        ]);
     }
 
     private function fetchTelegramProfilePhotoUrl(int $telegramId): ?string

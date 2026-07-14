@@ -19,6 +19,10 @@ sed "s/LISTEN_PORT/${PORT}/g" /var/www/html/docker/nginx.conf.template \
 # Ensure php-fpm listens on localhost:9000
 sed -i 's|^listen = .*|listen = 127.0.0.1:9000|' /usr/local/etc/php-fpm.d/www.conf || true
 
+# Ensure local photo storage directory + symlink exist (nginx also aliases /storage/)
+mkdir -p /var/www/html/storage/app/public
+php artisan storage:link --force || true
+
 # Clear stale config, then cache Laravel settings for performance
 php artisan config:clear
 php artisan config:cache

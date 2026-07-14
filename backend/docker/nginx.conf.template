@@ -21,6 +21,15 @@ server {
         proxy_read_timeout 60s;
     }
 
+    # Serve uploaded / Telegram-synced photos without depending on storage:link
+    location /storage/ {
+        alias /var/www/html/storage/app/public/;
+        access_log off;
+        expires 7d;
+        add_header Cache-Control "public";
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }

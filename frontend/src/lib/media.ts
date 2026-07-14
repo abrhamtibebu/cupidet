@@ -10,10 +10,13 @@ export function resolveMediaUrl(url?: string | null, fallback = ''): string {
       const parsed = new URL(url)
       const isLocal = parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost'
       const isStorage = parsed.pathname.startsWith('/storage/')
-      // Localhost always needs rewrite; storage paths also rewrite onto current API host
-      // so stale tunnel URLs (old trycloudflare host) keep working after tunnels refresh.
+      // Localhost /storage paths need the live API host. Leave Telegram/CDN URLs untouched.
       if (isLocal || isStorage) {
         return `${apiBase}${parsed.pathname}${parsed.search}`
+      }
+      // Never render Telegram bot-token file URLs in the client
+      if (parsed.hostname === 'api.telegram.org' && parsed.pathname.includes('/file/bot')) {
+        return fallback || url
       }
       return url
     }
