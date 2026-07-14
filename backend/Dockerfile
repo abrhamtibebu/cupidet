@@ -1,19 +1,31 @@
 FROM php:8.4-fpm-alpine
 
-# Native nginx + php-fpm (no Heroku boot scripts — Alpine-incompatible)
+# Native nginx + php-fpm with PostgreSQL (Neon) support
+# postgresql-dev is needed to compile; libpq must remain at runtime
 RUN apk add --no-cache \
-    nginx \
-    curl \
-    bash \
-    libpq-dev \
-    icu-dev \
-    libzip-dev \
-    zlib-dev \
-    oniguruma-dev \
+        nginx \
+        curl \
+        bash \
+        libpq \
+        icu-libs \
+        libzip \
+        oniguruma \
+        zlib \
+    && apk add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
+        postgresql-dev \
+        icu-dev \
+        libzip-dev \
+        oniguruma-dev \
+        zlib-dev \
+    && docker-php-ext-configure pgsql --with-pgsql=/usr \
     && docker-php-ext-configure intl \
-    && docker-php-ext-install pdo pdo_pgsql intl zip pcntl posix \
+    && docker-php-ext-install -j"$(nproc)" pdo pdo_pgsql pgsql intl zip pcntl posix \
+    && apk del --no-network .build-deps \
     && rm -f /etc/nginx/http.d/default.conf \
-    && mkdir -p /run/nginx /var/lib/nginx/tmp
+    && mkdir -p /run/nginx /var/lib/nginx/tmp \
+    && php -r 'exit(extension_loaded("pdo_pgsql") ? 0 : 1);' \
+    && php -m | grep -i pdo_pgsql
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

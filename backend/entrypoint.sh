@@ -5,6 +5,13 @@ export TMPDIR="${TMPDIR:-/tmp}"
 export PORT="${PORT:-10000}"
 mkdir -p "$TMPDIR" /run/nginx /var/lib/nginx/tmp/client_body /var/tmp/nginx
 
+# Fail fast if the Postgres PDO driver is missing
+if ! php -r 'exit(extension_loaded("pdo_pgsql") ? 0 : 1);'; then
+  echo "ERROR: PHP pdo_pgsql extension is not loaded. Rebuild the Docker image." >&2
+  php -m >&2 || true
+  exit 1
+fi
+
 # Write nginx config for Render's PORT (0.0.0.0:10000 by default)
 sed "s/LISTEN_PORT/${PORT}/g" /var/www/html/docker/nginx.conf.template \
   > /etc/nginx/http.d/default.conf
@@ -12,7 +19,8 @@ sed "s/LISTEN_PORT/${PORT}/g" /var/www/html/docker/nginx.conf.template \
 # Ensure php-fpm listens on localhost:9000
 sed -i 's|^listen = .*|listen = 127.0.0.1:9000|' /usr/local/etc/php-fpm.d/www.conf || true
 
-# Clear and cache Laravel settings for performance
+# Clear stale config, then cache Laravel settings for performance
+php artisan config:clear
 php artisan config:cache
 php artisan route:cache
 
