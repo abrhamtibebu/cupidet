@@ -21,11 +21,18 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(InterestSeeder::class);
 
+        $adminPassword = env('ADMIN_PASSWORD');
+        if (! is_string($adminPassword) || strlen($adminPassword) < 16) {
+            throw new \RuntimeException(
+                'Set ADMIN_PASSWORD in your environment to a strong value (16+ characters) before seeding admins.'
+            );
+        }
+
         Admin::query()->updateOrCreate(
-            ['email' => 'admin@cupidet.com'],
+            ['email' => env('ADMIN_EMAIL', 'admin@cupidet.com')],
             [
                 'name' => 'Mingle 251 Admin',
-                'password' => Hash::make('password'),
+                'password' => Hash::make($adminPassword),
             ]
         );
 
