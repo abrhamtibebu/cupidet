@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+import { getApiUrl } from './apiBase'
+
+const API_URL = getApiUrl()
 const TOKEN_KEY = 'cupid_admin_token'
 
 export type AdminUser = {

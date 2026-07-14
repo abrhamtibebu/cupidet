@@ -1,6 +1,7 @@
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
 import { getToken } from './api'
+import { getApiOrigin } from './apiBase'
 
 declare global {
   interface Window {
@@ -14,7 +15,7 @@ let echoInstance: Echo<'reverb'> | null = null
 let echoToken: string | null = null
 let echoEndpointKey: string | null = null
 
-const apiBase = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001/api').replace(/\/api\/?$/, '')
+const apiBase = getApiOrigin()
 
 function isLocalHost(hostname: string) {
   return hostname === 'localhost' || hostname === '127.0.0.1'

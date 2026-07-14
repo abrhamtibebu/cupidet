@@ -6,6 +6,7 @@ return [
     'allowed_origins' => ['*'],
     'allowed_origins_patterns' => [
         '#^https://.*\\.trycloudflare\\.com$#',
+        '#^https://.*\\.onrender\\.com$#',
     ],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],

@@ -1,7 +1,9 @@
+import { getApiOrigin } from './apiBase'
+
 /** Rewrite local/API storage URLs so Telegram/cloudflare clients can load them via the current API host. */
 export function resolveMediaUrl(url?: string | null, fallback = ''): string {
   if (!url) return fallback
-  const apiBase = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001/api').replace(/\/api\/?$/, '')
+  const apiBase = getApiOrigin()
 
   try {
     if (url.startsWith('http://') || url.startsWith('https://')) {
