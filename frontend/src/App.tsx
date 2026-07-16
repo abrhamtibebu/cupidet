@@ -15,11 +15,11 @@ import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminLoginPage } from './pages/admin/Login'
 import { AdminDashboardPage } from './pages/admin/Dashboard'
 import { AdminMatchesPage } from './pages/admin/Matches'
-import { AdminNewOnlinePage } from './pages/admin/NewOnline'
+import { AdminUsersPage } from './pages/admin/Users'
 import { AdminDemographicsPage } from './pages/admin/Demographics'
 import { AdminApprovalsPage } from './pages/admin/Approvals'
 import { AdminLanguagesPage } from './pages/admin/Languages'
-import { AdminContactPage } from './pages/admin/Contact'
+import { AdminReportsPage } from './pages/admin/Reports'
 
 const INTRO_KEY = 'cupid_intro_v2'
 
@@ -122,12 +122,14 @@ function AdminApp() {
         <Route element={<AdminGuard />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboardPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
             <Route path="matches" element={<AdminMatchesPage />} />
-            <Route path="new-online" element={<AdminNewOnlinePage />} />
+            <Route path="new-online" element={<Navigate to="/admin/users" replace />} />
             <Route path="demographics" element={<AdminDemographicsPage />} />
             <Route path="approvals" element={<AdminApprovalsPage />} />
             <Route path="languages" element={<AdminLanguagesPage />} />
-            <Route path="contact" element={<AdminContactPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="contact" element={<Navigate to="/admin/reports" replace />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />

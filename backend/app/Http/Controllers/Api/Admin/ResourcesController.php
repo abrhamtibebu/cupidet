@@ -10,12 +10,13 @@ use App\Models\User;
 use App\Models\VerificationRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ResourcesController extends Controller
 {
     public function users(Request $request): JsonResponse
     {
-        $bucket = $request->string('bucket')->toString();
+        $bucket = $request->string('bucket')->toString() ?: 'all';
 
         $query = User::query()->with('profile')->latest('last_active');
 
@@ -23,11 +24,6 @@ class ResourcesController extends Controller
             $query->where('last_active', '>=', now()->subDay());
         } elseif ($bucket === 'new') {
             $query->where('created_at', '>=', now()->subDays(14));
-        } else {
-            $query->where(function ($q): void {
-                $q->where('created_at', '>=', now()->subDays(14))
-                    ->orWhere('last_active', '>=', now()->subDay());
-            });
         }
 
         if ($search = $request->string('q')->toString()) {
@@ -37,7 +33,9 @@ class ResourcesController extends Controller
             });
         }
 
-        $users = $query->limit(50)->get()->map(fn (User $user) => [
+        $paginator = $this->paginate($query, $request, 50);
+
+        $data = collect($paginator->items())->map(fn (User $user) => [
             'id' => $user->id,
             'username' => $user->username,
             'name' => $user->profile?->name,
@@ -49,7 +47,10 @@ class ResourcesController extends Controller
             'photo_url' => $user->photo_url,
         ]);
 
-        return response()->json(['data' => $users]);
+        return response()->json([
+            'data' => $data,
+            'meta' => $this->meta($paginator),
+        ]);
     }
 
     public function updateUser(Request $request, User $user): JsonResponse
@@ -68,23 +69,27 @@ class ResourcesController extends Controller
         ]]);
     }
 
-    public function matches(): JsonResponse
+    public function matches(Request $request): JsonResponse
     {
-        $matches = MatchModel::query()
+        $query = MatchModel::query()
             ->with(['userOne.profile', 'userTwo.profile'])
             ->withCount('messages')
-            ->latest('matched_at')
-            ->limit(50)
-            ->get()
-            ->map(fn (MatchModel $match) => [
-                'id' => $match->id,
-                'user_one' => $match->userOne?->profile?->name ?? $match->userOne?->username,
-                'user_two' => $match->userTwo?->profile?->name ?? $match->userTwo?->username,
-                'messages_count' => $match->messages_count,
-                'matched_at' => optional($match->matched_at)?->toIso8601String(),
-            ]);
+            ->latest('matched_at');
 
-        return response()->json(['data' => $matches]);
+        $paginator = $this->paginate($query, $request, 50);
+
+        $data = collect($paginator->items())->map(fn (MatchModel $match) => [
+            'id' => $match->id,
+            'user_one' => $match->userOne?->profile?->name ?? $match->userOne?->username,
+            'user_two' => $match->userTwo?->profile?->name ?? $match->userTwo?->username,
+            'messages_count' => $match->messages_count,
+            'matched_at' => optional($match->matched_at)?->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'data' => $data,
+            'meta' => $this->meta($paginator),
+        ]);
     }
 
     public function photos(Request $request): JsonResponse
@@ -96,7 +101,9 @@ class ResourcesController extends Controller
             $query->where('status', $status);
         }
 
-        $photos = $query->limit(60)->get()->map(fn (Photo $photo) => [
+        $paginator = $this->paginate($query, $request, 60);
+
+        $data = collect($paginator->items())->map(fn (Photo $photo) => [
             'id' => $photo->id,
             'image_url' => $photo->image_url,
             'status' => $photo->status,
@@ -106,7 +113,10 @@ class ResourcesController extends Controller
             'created_at' => optional($photo->created_at)?->toIso8601String(),
         ]);
 
-        return response()->json(['data' => $photos]);
+        return response()->json([
+            'data' => $data,
+            'meta' => $this->meta($paginator),
+        ]);
     }
 
     public function updatePhoto(Request $request, Photo $photo): JsonResponse
@@ -127,24 +137,50 @@ class ResourcesController extends Controller
     {
         $status = $request->string('status')->toString() ?: null;
 
-        $query = VerificationRequest::query()->with(['user.profile'])->latest();
+        $query = VerificationRequest::query()
+            ->with(['user.profile', 'user.photos'])
+            ->latest();
+
         if ($status) {
             $query->where('status', $status);
         }
 
-        $requests = $query->limit(60)->get()->map(fn (VerificationRequest $verification) => [
-            'id' => $verification->id,
-            'selfie_url' => $verification->selfie_url,
-            'status' => $verification->status,
-            'notes' => $verification->notes,
-            'username' => $verification->user?->username,
-            'name' => $verification->user?->profile?->name,
-            'verified' => (bool) $verification->user?->verified,
-            'created_at' => optional($verification->created_at)?->toIso8601String(),
-            'reviewed_at' => optional($verification->reviewed_at)?->toIso8601String(),
-        ]);
+        $paginator = $this->paginate($query, $request, 40);
 
-        return response()->json(['data' => $requests]);
+        $data = collect($paginator->items())->map(function (VerificationRequest $verification) {
+            $photos = ($verification->user?->photos ?? collect())
+                ->sortByDesc(fn (Photo $photo) => (int) $photo->is_primary)
+                ->values()
+                ->map(fn (Photo $photo) => [
+                    'id' => $photo->id,
+                    'image_url' => $photo->image_url,
+                    'is_primary' => (bool) $photo->is_primary,
+                    'status' => $photo->status,
+                ]);
+
+            $primary = $photos->firstWhere('is_primary', true) ?? $photos->first();
+
+            return [
+                'id' => $verification->id,
+                'selfie_url' => $verification->selfie_url,
+                'status' => $verification->status,
+                'notes' => $verification->notes,
+                'username' => $verification->user?->username,
+                'name' => $verification->user?->profile?->name,
+                'verified' => (bool) $verification->user?->verified,
+                'created_at' => optional($verification->created_at)?->toIso8601String(),
+                'reviewed_at' => optional($verification->reviewed_at)?->toIso8601String(),
+                'photos' => $photos,
+                'primary_photo_url' => is_array($primary)
+                    ? ($primary['image_url'] ?? $verification->user?->photo_url)
+                    : $verification->user?->photo_url,
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
+            'meta' => $this->meta($paginator),
+        ]);
     }
 
     public function updateVerification(Request $request, VerificationRequest $verification): JsonResponse
@@ -156,7 +192,7 @@ class ResourcesController extends Controller
 
         $verification->fill([
             'status' => $data['status'],
-            'notes' => $data['notes'] ?? $verification->notes,
+            'notes' => array_key_exists('notes', $data) ? $data['notes'] : $verification->notes,
             'reviewed_at' => $data['status'] === 'pending' ? null : now(),
             'reviewed_by' => $data['status'] === 'pending' ? null : $request->user()->id,
         ])->save();
@@ -185,7 +221,9 @@ class ResourcesController extends Controller
             $query->where('status', $status);
         }
 
-        $reports = $query->limit(50)->get()->map(fn (Report $report) => [
+        $paginator = $this->paginate($query, $request, 50);
+
+        $data = collect($paginator->items())->map(fn (Report $report) => [
             'id' => $report->id,
             'reason' => $report->reason,
             'status' => $report->status,
@@ -196,7 +234,10 @@ class ResourcesController extends Controller
             'created_at' => optional($report->created_at)?->toIso8601String(),
         ]);
 
-        return response()->json(['data' => $reports]);
+        return response()->json([
+            'data' => $data,
+            'meta' => $this->meta($paginator),
+        ]);
     }
 
     public function updateReport(Request $request, Report $report): JsonResponse
@@ -213,5 +254,22 @@ class ResourcesController extends Controller
             'status' => $report->status,
             'notes' => $report->notes,
         ]]);
+    }
+
+    private function paginate($query, Request $request, int $defaultPerPage): LengthAwarePaginator
+    {
+        $perPage = min(100, max(1, (int) $request->integer('per_page', $defaultPerPage)));
+
+        return $query->paginate($perPage)->appends($request->query());
+    }
+
+    private function meta(LengthAwarePaginator $paginator): array
+    {
+        return [
+            'total' => $paginator->total(),
+            'per_page' => $paginator->perPage(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+        ];
     }
 }

@@ -9,6 +9,7 @@ import { BottomNav } from '../components/BottomNav'
 import { IconSettings } from '../components/Icons'
 import { CitySelect } from '../components/CitySelect'
 import { LoadingButton, Spinner } from '../components/Loading'
+import { SelfieCaptureModal } from '../components/SelfieCaptureModal'
 import { AgeRangeSlider, datingPreferredGender } from '../components/AgeRangeSlider'
 import {
   ProfileExtrasFields,
@@ -47,6 +48,7 @@ function ageFromBirthDate(iso?: string | null): number | null {
 export function ProfilePage() {
   const { user, refresh } = useAuth()
   const [editing, setEditing] = useState(false)
+  const [selfieOpen, setSelfieOpen] = useState(false)
   const [interests, setInterests] = useState<Interest[]>([])
   const [interestsLoading, setInterestsLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -272,6 +274,7 @@ export function ProfilePage() {
       const res = await api.uploadVerificationSelfie(compressed)
       telegramHaptic('success')
       await refresh()
+      setSelfieOpen(false)
       setMessage(res.message || 'Selfie submitted. Admin review usually takes 2 to 48 hours.')
     } catch (e) {
       telegramHaptic('error')
@@ -404,7 +407,7 @@ export function ProfilePage() {
             <div>
               <p className="text-sm font-semibold text-white">Get verified</p>
               <p className="mt-1 text-xs leading-relaxed text-muted">
-                Submit a quick selfie. Admin review usually takes 2 to 48 hours.
+                Take a live selfie with your camera. Gallery uploads are not allowed. Admin review usually takes 2 to 48 hours.
               </p>
             </div>
             <span
@@ -434,36 +437,27 @@ export function ProfilePage() {
             </p>
           ) : null}
 
-          <label
-            className={`mt-3 flex cursor-pointer items-center justify-center rounded-2xl border border-dashed border-white/15 px-4 py-3 text-sm font-semibold ${
-              submittingVerification || anyBusy ? 'pointer-events-none opacity-60' : 'text-sky-200'
-            }`}
+          <button
+            type="button"
+            disabled={submittingVerification || anyBusy}
+            onClick={() => setSelfieOpen(true)}
+            className="mt-3 flex w-full items-center justify-center rounded-2xl border border-dashed border-white/15 px-4 py-3 text-sm font-semibold text-sky-200 disabled:pointer-events-none disabled:opacity-60"
           >
             {submittingVerification
               ? 'Submitting selfie…'
               : verification?.status === 'pending'
-                ? 'Replace selfie'
-                : 'Submit selfie for review'}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="user"
-              className="hidden"
-              disabled={submittingVerification || anyBusy}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                e.target.value = ''
-                if (file) void submitVerificationSelfie(file)
-              }}
-            />
-          </label>
+                ? 'Retake selfie'
+                : 'Take selfie for review'}
+          </button>
         </section>
-      ) : (
-        <section className="mb-4 rounded-[22px] border border-sky-300/25 bg-sky-300/10 px-4 py-3">
-          <p className="text-sm font-semibold text-sky-100">Verified badge active</p>
-          <p className="mt-1 text-xs text-sky-100/70">Your selfie was approved by admin.</p>
-        </section>
-      )}
+      ) : null}
+
+      <SelfieCaptureModal
+        open={selfieOpen && !user?.verified}
+        busy={submittingVerification}
+        onClose={() => setSelfieOpen(false)}
+        onCapture={submitVerificationSelfie}
+      />
 
       {/* Hero identity — full width (avoid aspect-ratio + max-height shrinking width) */}
       <section className="relative w-full min-w-0 overflow-hidden rounded-[28px]">

@@ -9,6 +9,82 @@ export type AdminUser = {
   email: string
 }
 
+export type AdminMeta = {
+  total: number
+  per_page: number
+  current_page: number
+  last_page: number
+}
+
+export type AdminUserRow = {
+  id: number
+  username: string | null
+  name: string | null
+  location: string | null
+  verified: boolean
+  status: string
+  last_active: string | null
+  created_at: string | null
+  photo_url: string | null
+}
+
+export type AdminPhotoRow = {
+  id: number
+  image_url: string
+  status: string
+  is_primary: boolean
+  username: string | null
+  name: string | null
+  created_at: string | null
+}
+
+export type AdminVerificationPhoto = {
+  id: number
+  image_url: string
+  is_primary: boolean
+  status: string
+}
+
+export type AdminVerificationRow = {
+  id: number
+  selfie_url: string
+  status: string
+  notes: string | null
+  username: string | null
+  name: string | null
+  verified: boolean
+  created_at: string | null
+  reviewed_at: string | null
+  photos: AdminVerificationPhoto[]
+  primary_photo_url: string | null
+}
+
+export type AdminMatchRow = {
+  id: number
+  user_one: string | null
+  user_two: string | null
+  messages_count: number
+  matched_at: string | null
+}
+
+export type AdminReportRow = {
+  id: number
+  reason: string
+  status: string
+  details: string | null
+  notes: string | null
+  reporter: string | null
+  reported: string | null
+  created_at: string | null
+}
+
+export type AdminBreakdown = {
+  name: string
+  count: number
+  color?: string
+  percent?: number
+}
+
 export function getAdminToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -53,6 +129,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 }
 
+function qs(params: Record<string, string | number | undefined | null>) {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    search.set(key, String(value))
+  })
+  const suffix = search.toString()
+  return suffix ? `?${suffix}` : ''
+}
+
 export const adminApi = {
   login: (payload: { email: string; password: string }) =>
     request<{ token: string; admin: AdminUser }>('/login', {
@@ -64,12 +150,14 @@ export const adminApi = {
   stats: () =>
     request<{
       total_users: number
+      active_users: number
       active_7d: number
       new_7d: number
       verified_users: number
       matches: number
       likes: number
       pending_photos: number
+      pending_verifications: number
       open_reports: number
       new_users_today: number
       series: {
@@ -81,11 +169,17 @@ export const adminApi = {
       }
     }>('/stats'),
   map: () =>
-    request<{ points: { lat: number; lng: number; name: string; location: string }[] }>('/map'),
+    request<{
+      points: { lat: number; lng: number; name: string; location: string }[]
+      meta: { total: number; shown: number }
+    }>('/map'),
   locations: () =>
-    request<{ locations: { name: string; count: number; color: string; percent: number }[] }>(
-      '/locations',
-    ),
+    request<{
+      locations: AdminBreakdown[]
+      genders: AdminBreakdown[]
+      age_bands: AdminBreakdown[]
+      relationship_goals: AdminBreakdown[]
+    }>('/locations'),
   languages: () =>
     request<{
       languages: { name: string; count: number }[]
@@ -93,41 +187,40 @@ export const adminApi = {
     }>('/languages'),
   activity: () =>
     request<{
-      activity: { name: string; text: string; time: string; photo?: string | null }[]
+      activity: {
+        type?: string
+        name: string
+        text: string
+        time: string
+        photo?: string | null
+      }[]
     }>('/activity'),
   messages: () =>
     request<{
       messages: { name: string; preview: string; time: string; photo?: string | null }[]
     }>('/messages'),
-  users: (params?: { bucket?: string; q?: string }) => {
-    const qs = new URLSearchParams()
-    if (params?.bucket) qs.set('bucket', params.bucket)
-    if (params?.q) qs.set('q', params.q)
-    const suffix = qs.toString() ? `?${qs}` : ''
-    return request<{ data: Record<string, unknown>[] }>(`/users${suffix}`)
-  },
+  users: (params?: { bucket?: string; q?: string; page?: number; per_page?: number }) =>
+    request<{ data: AdminUserRow[]; meta: AdminMeta }>(`/users${qs(params || {})}`),
   updateUser: (id: number, body: { status?: string; verified?: boolean }) =>
-    request(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  matches: () => request<{ data: Record<string, unknown>[] }>('/matches'),
-  photos: (status?: string) =>
-    request<{ data: Record<string, unknown>[] }>(
-      `/photos${status ? `?status=${encodeURIComponent(status)}` : ''}`,
-    ),
+    request<{ user: { id: number; status: string; verified: boolean } }>(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  matches: (params?: { page?: number; per_page?: number }) =>
+    request<{ data: AdminMatchRow[]; meta: AdminMeta }>(`/matches${qs(params || {})}`),
+  photos: (params?: { status?: string; page?: number; per_page?: number }) =>
+    request<{ data: AdminPhotoRow[]; meta: AdminMeta }>(`/photos${qs(params || {})}`),
   updatePhoto: (id: number, status: string) =>
     request(`/photos/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  verifications: (status?: string) =>
-    request<{ data: Record<string, unknown>[] }>(
-      `/verifications${status ? `?status=${encodeURIComponent(status)}` : ''}`,
-    ),
+  verifications: (params?: { status?: string; page?: number; per_page?: number }) =>
+    request<{ data: AdminVerificationRow[]; meta: AdminMeta }>(`/verifications${qs(params || {})}`),
   updateVerification: (id: number, status: string, notes?: string) =>
     request(`/verifications/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status, notes }),
     }),
-  reports: (status?: string) =>
-    request<{ data: Record<string, unknown>[] }>(
-      `/reports${status ? `?status=${encodeURIComponent(status)}` : ''}`,
-    ),
+  reports: (params?: { status?: string; page?: number; per_page?: number }) =>
+    request<{ data: AdminReportRow[]; meta: AdminMeta }>(`/reports${qs(params || {})}`),
   updateReport: (id: number, body: { status?: string; notes?: string }) =>
     request(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
 }

@@ -5,8 +5,8 @@ import { useAdminAuth } from '../../lib/adminAuth'
 export function AdminLoginPage() {
   const { admin, loading, login } = useAdminAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('admin@cupidet.com')
-  const [password, setPassword] = useState('password')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -30,14 +30,7 @@ export function AdminLoginPage() {
     <div className="admin-login">
       <form className="admin-login-card" onSubmit={onSubmit}>
         <div className="admin-brand admin-brand-login">
-          <img
-            src="/mingle_251_icon.png"
-            alt=""
-            className="admin-brand-dot"
-            width={40}
-            height={40}
-            style={{ objectFit: 'contain', padding: 0, background: 'transparent' }}
-          />
+          <img src="/mingle_251_icon.png" alt="" className="admin-brand-dot" width={40} height={40} />
           <span>
             <span className="admin-brand-name">Mingle 251</span>
             <span className="admin-brand-sub">Admin console</span>
@@ -46,7 +39,7 @@ export function AdminLoginPage() {
 
         <div className="admin-login-lead">
           <h1>Sign in</h1>
-          <p>Manage users, matches, and photo approvals.</p>
+          <p>Manage users, verifications, and community safety.</p>
         </div>
 
         <label>
@@ -54,7 +47,7 @@ export function AdminLoginPage() {
           <input
             type="email"
             autoComplete="username"
-            placeholder="you@cupidet.com"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
