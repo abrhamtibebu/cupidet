@@ -97,7 +97,7 @@ class ProfileController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'birth_date' => ['required', 'date', 'before:-18 years'],
-            'gender' => ['required', Rule::in(['male', 'female', 'other'])],
+            'gender' => ['required', Rule::in(['male', 'female'])],
             'location' => ['nullable', 'string', 'max:120'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],

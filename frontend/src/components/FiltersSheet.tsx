@@ -34,7 +34,7 @@ const lookingFor = [
 export function FiltersSheet({
   open,
   initial,
-  userGender = 'other',
+  userGender = 'female',
   interests = [],
   onClose,
   onSave,

@@ -140,11 +140,16 @@ export function DiscoverPage() {
 
   const saveFilters = async (filters: FilterState) => {
     setFiltersOpen(false)
+    const gender = user?.profile?.gender
+    if (gender !== 'male' && gender !== 'female') {
+      setError('Set your gender in Profile before updating filters.')
+      return
+    }
     try {
       await api.saveProfile({
         name: user?.profile?.name || user?.first_name || 'User',
         birth_date: user?.profile?.birth_date?.slice(0, 10),
-        gender: user?.profile?.gender || 'other',
+        gender,
         location: user?.profile?.location,
         latitude: user?.profile?.latitude,
         longitude: user?.profile?.longitude,
@@ -291,7 +296,11 @@ export function DiscoverPage() {
 
       <FiltersSheet
         open={filtersOpen}
-        userGender={user?.profile?.gender || 'other'}
+        userGender={
+          user?.profile?.gender === 'male' || user?.profile?.gender === 'female'
+            ? user.profile.gender
+            : 'female'
+        }
         interests={filterInterests}
         initial={{
           preferred_gender: user?.preferences?.preferred_gender || 'any',

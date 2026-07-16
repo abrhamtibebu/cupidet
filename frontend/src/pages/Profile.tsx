@@ -24,6 +24,7 @@ import {
   DRINKING_OPTIONS,
   SMOKING_OPTIONS,
 } from '../lib/profileOptions'
+import { profileCompleteness } from '../lib/profileCompleteness'
 import type { Interest, Photo, ProfilePrompt } from '../types'
 
 function photoSrc(photo?: Photo | null, fallback?: string | null) {
@@ -58,7 +59,7 @@ export function ProfilePage() {
   const [form, setForm] = useState({
     name: user?.profile?.name || '',
     birth_date: user?.profile?.birth_date || '',
-    gender: user?.profile?.gender || 'female',
+    gender: user?.profile?.gender === 'male' || user?.profile?.gender === 'female' ? user.profile.gender : '',
     location: user?.profile?.location || '',
     bio: user?.profile?.bio || '',
     relationship_goal: user?.profile?.relationship_goal || 'casual',
@@ -94,7 +95,7 @@ export function ProfilePage() {
     setForm({
       name: user.profile?.name || '',
       birth_date: user.profile?.birth_date || '',
-      gender: user.profile?.gender || 'female',
+      gender: user.profile?.gender === 'male' || user.profile?.gender === 'female' ? user.profile.gender : '',
       location: user.profile?.location || '',
       bio: user.profile?.bio || '',
       relationship_goal: user.profile?.relationship_goal || 'casual',
@@ -128,6 +129,7 @@ export function ProfilePage() {
   }, [user?.preferences?.preferred_gender])
 
   const anyBusy = saving || uploading || busyPhotoId !== null
+  const completeness = useMemo(() => profileCompleteness(user), [user])
 
   const detailFacts = useMemo(() => {
     const p = user?.profile
@@ -152,7 +154,7 @@ export function ProfilePage() {
     setForm({
       name: user.profile?.name || '',
       birth_date: user.profile?.birth_date || '',
-      gender: user.profile?.gender || 'female',
+      gender: user.profile?.gender === 'male' || user.profile?.gender === 'female' ? user.profile.gender : '',
       location: user.profile?.location || '',
       bio: user.profile?.bio || '',
       relationship_goal: user.profile?.relationship_goal || 'casual',
@@ -184,6 +186,10 @@ export function ProfilePage() {
   const save = async () => {
     setError('')
     setMessage('')
+    if (form.gender !== 'male' && form.gender !== 'female') {
+      setError('Please select your gender.')
+      return
+    }
     setSaving(true)
     try {
       const datingPref = datingPreferredGender(form.gender)
@@ -328,6 +334,41 @@ export function ProfilePage() {
           {error || message}
         </div>
       )}
+
+      {!editing && completeness.percent < 100 ? (
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(true)
+            setMessage('')
+            setError('')
+          }}
+          className="mb-4 w-full rounded-[22px] border border-lime/25 bg-panel p-4 text-left"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">Complete your profile</p>
+              <p className="mt-1 text-xs text-muted">
+                {completeness.missing[0]
+                  ? `Next: ${completeness.missing[0]}`
+                  : 'Add a few more details to stand out.'}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-lime px-2.5 py-1 text-xs font-bold text-ink">
+              {completeness.percent}%
+            </span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-lime transition-[width] duration-300"
+              style={{ width: `${completeness.percent}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-white/45">
+            {completeness.completed}/{completeness.total} sections · tap to edit
+          </p>
+        </button>
+      ) : null}
 
       {/* Hero identity — full width (avoid aspect-ratio + max-height shrinking width) */}
       <section className="relative w-full min-w-0 overflow-hidden rounded-[28px]">
@@ -532,7 +573,7 @@ export function ProfilePage() {
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/45">Gender</p>
             <div className="flex flex-wrap gap-2">
-              {['female', 'male', 'other'].map((g) => (
+              {(['female', 'male'] as const).map((g) => (
                 <button
                   key={g}
                   type="button"

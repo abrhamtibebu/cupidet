@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import imageCompression from 'browser-image-compression'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../lib/api'
@@ -7,16 +7,10 @@ import { resolveMediaUrl } from '../lib/media'
 import { getTelegramUserUnsafe, telegramHaptic } from '../lib/telegram'
 import { CitySelect } from '../components/CitySelect'
 import { BirthDateFields, isAtLeast18 } from '../components/BirthDateFields'
-import { AgeRangeSlider, datingPreferredGender } from '../components/AgeRangeSlider'
-import {
-  ProfileExtrasFields,
-  emptyDetailFields,
-  parseHobbies,
-} from '../components/ProfileExtrasFields'
-import { PROFILE_PROMPTS, RELATIONSHIP_GOALS, isCasualGoal } from '../lib/profileOptions'
-import type { Interest, ProfilePrompt } from '../types'
+import { datingPreferredGender } from '../components/AgeRangeSlider'
+import { RELATIONSHIP_GOALS, isCasualGoal } from '../lib/profileOptions'
 
-const steps = ['About you', 'Photos', 'Interests', 'Looking for', 'Details', 'Prompts']
+const steps = ['About you', 'Photos']
 
 function telegramDisplayName(user: {
   profile?: { name?: string } | null
@@ -44,62 +38,30 @@ function telegramPhotoUrl(user: {
 export function OnboardingPage() {
   const { refresh, user, logout } = useAuth()
   const [step, setStep] = useState(0)
-  const [interests, setInterests] = useState<Interest[]>([])
-  const [interestsLoading, setInterestsLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const syncedPhoto = telegramPhotoUrl(user)
   const [preview, setPreview] = useState<string | null>(syncedPhoto)
   const [photoFromTelegram] = useState(Boolean(syncedPhoto))
-  const [prompts, setPrompts] = useState<ProfilePrompt[]>([])
   const [form, setForm] = useState({
     name: telegramDisplayName(user),
     birth_date: user?.profile?.birth_date?.slice(0, 10) || '',
-    gender: user?.profile?.gender || 'female',
+    gender: (user?.profile?.gender === 'male' || user?.profile?.gender === 'female'
+      ? user.profile.gender
+      : '') as '' | 'male' | 'female',
     location: user?.profile?.location || 'Addis Ababa',
     latitude: (user?.profile?.latitude as number | null | undefined) ?? null,
     longitude: (user?.profile?.longitude as number | null | undefined) ?? null,
     bio: user?.profile?.bio || '',
     relationship_goal: user?.profile?.relationship_goal || 'casual',
-    interest_ids: [] as number[],
-    preferred_gender: (datingPreferredGender(user?.profile?.gender || 'female') || 'male') as string,
-    min_age: 18,
-    max_age: 35,
-    preferred_location: '',
-    ...emptyDetailFields(),
   })
-
-  useEffect(() => {
-    let alive = true
-    setInterestsLoading(true)
-    api
-      .interests()
-      .then((res) => {
-        if (alive) setInterests(res.interests)
-      })
-      .catch(() => {
-        if (alive) setInterests([])
-      })
-      .finally(() => {
-        if (alive) setInterestsLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [])
 
   const title = useMemo(() => steps[step], [step])
   const canContinueAbout =
-    Boolean(form.name.trim()) && Boolean(form.birth_date) && isAtLeast18(form.birth_date)
-
-  const toggleInterest = (id: number) => {
-    setForm((prev) => ({
-      ...prev,
-      interest_ids: prev.interest_ids.includes(id)
-        ? prev.interest_ids.filter((x) => x !== id)
-        : [...prev.interest_ids, id].slice(0, 8),
-    }))
-  }
+    Boolean(form.name.trim()) &&
+    Boolean(form.birth_date) &&
+    isAtLeast18(form.birth_date) &&
+    (form.gender === 'male' || form.gender === 'female')
 
   const rejectUnderage = async () => {
     setSaving(true)
@@ -129,52 +91,44 @@ export function OnboardingPage() {
       void rejectUnderage()
       return
     }
+    if (form.gender !== 'male' && form.gender !== 'female') {
+      setError('Please select your gender.')
+      return
+    }
     setStep(1)
   }
 
-  const saveProfile = async () => {
+  const finishOnboarding = async () => {
     if (!isAtLeast18(form.birth_date)) {
       void rejectUnderage()
       return
     }
+    if (form.gender !== 'male' && form.gender !== 'female') {
+      setError('Please select your gender.')
+      setStep(0)
+      return
+    }
+
     const datingPref = datingPreferredGender(form.gender)
     const preferred_gender =
-      isCasualGoal(form.relationship_goal) && datingPref ? datingPref : form.preferred_gender
-
-    const payload = {
-      name: form.name,
-      birth_date: form.birth_date,
-      gender: form.gender,
-      location: form.location,
-      latitude: form.latitude,
-      longitude: form.longitude,
-      bio: form.bio,
-      relationship_goal: form.relationship_goal,
-      interest_ids: form.interest_ids,
-      preferred_gender,
-      min_age: Math.max(18, form.min_age),
-      max_age: Math.max(form.min_age, form.max_age),
-      preferred_location: form.preferred_location || null,
-      height_cm: form.height_cm ? Number(form.height_cm) : null,
-      education: form.education || null,
-      occupation: form.occupation || null,
-      religion: form.religion || null,
-      languages: form.languages,
-      children: form.children || null,
-      pets: form.pets || null,
-      drinking: form.drinking || null,
-      smoking: form.smoking || null,
-      hobbies: parseHobbies(form.hobbies),
-      prompts: prompts
-        .filter((p) => p.answer.trim())
-        .slice(0, 3)
-        .map((p) => ({ prompt_key: p.prompt_key, answer: p.answer.trim() })),
-    }
+      isCasualGoal(form.relationship_goal) && datingPref ? datingPref : datingPref || 'any'
 
     setSaving(true)
     setError('')
     try {
-      await api.saveProfile(payload)
+      await api.saveProfile({
+        name: form.name,
+        birth_date: form.birth_date,
+        gender: form.gender,
+        location: form.location,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        bio: form.bio,
+        relationship_goal: form.relationship_goal,
+        preferred_gender,
+        min_age: 18,
+        max_age: 35,
+      })
       telegramHaptic('success')
       await refresh()
     } catch (e) {
@@ -201,27 +155,12 @@ export function OnboardingPage() {
         useWebWorker: true,
       })
       await api.uploadPhoto(compressed, true)
-      setStep(2)
+      setSaving(false)
+      await finishOnboarding()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed')
-    } finally {
       setSaving(false)
     }
-  }
-
-  const setPrompt = (key: string, answer: string) => {
-    const existing = prompts.find((p) => p.prompt_key === key)
-    if (!answer.trim()) {
-      setPrompts(prompts.filter((p) => p.prompt_key !== key))
-      return
-    }
-    if (existing) {
-      setPrompts(prompts.map((p) => (p.prompt_key === key ? { ...p, answer } : p)))
-      return
-    }
-    if (prompts.length >= 3) return
-    const label = PROFILE_PROMPTS.find((p) => p.key === key)?.label
-    setPrompts([...prompts, { prompt_key: key, label, answer }])
   }
 
   return (
@@ -232,7 +171,7 @@ export function OnboardingPage() {
           type="button"
           className="grid h-10 w-10 place-items-center rounded-full bg-panel text-white/70"
           onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0}
+          disabled={step === 0 || saving}
         >
           ←
         </button>
@@ -260,7 +199,7 @@ export function OnboardingPage() {
         >
           {step === 0 && (
             <div className="space-y-3">
-              <p className="mb-2 text-sm text-muted">Tell people who you are.</p>
+              <p className="mb-2 text-sm text-muted">Tell people who you are. You can add more details later.</p>
               {(form.name || syncedPhoto) && (
                 <div className="mb-1 flex items-center gap-3 rounded-[22px] border border-lime/20 bg-panel px-3 py-3">
                   {syncedPhoto ? (
@@ -300,22 +239,12 @@ export function OnboardingPage() {
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/45">Gender</p>
                 <div className="flex flex-wrap gap-2">
-                  {['female', 'male', 'other'].map((g) => (
+                  {(['female', 'male'] as const).map((g) => (
                     <button
                       key={g}
                       type="button"
                       className={`chip capitalize ${form.gender === g ? 'chip-active' : ''}`}
-                      onClick={() => {
-                        const datingPref = datingPreferredGender(g)
-                        setForm({
-                          ...form,
-                          gender: g,
-                          preferred_gender:
-                            isCasualGoal(form.relationship_goal) && datingPref
-                              ? datingPref
-                              : form.preferred_gender,
-                        })
-                      }}
+                      onClick={() => setForm({ ...form, gender: g })}
                     >
                       {g}
                     </button>
@@ -373,15 +302,7 @@ export function OnboardingPage() {
                     key={g.id}
                     type="button"
                     className={`chip ${form.relationship_goal === g.id ? 'chip-active' : ''}`}
-                    onClick={() => {
-                      const datingPref = datingPreferredGender(form.gender)
-                      setForm({
-                        ...form,
-                        relationship_goal: g.id,
-                        preferred_gender:
-                          isCasualGoal(g.id) && datingPref ? datingPref : form.preferred_gender,
-                      })
-                    }}
+                    onClick={() => setForm({ ...form, relationship_goal: g.id })}
                   >
                     {g.label}
                   </button>
@@ -393,7 +314,7 @@ export function OnboardingPage() {
                 disabled={!canContinueAbout || saving}
                 onClick={continueAboutYou}
               >
-                {saving ? 'Please wait…' : 'Continue'}
+                Continue
               </button>
             </div>
           )}
@@ -425,6 +346,7 @@ export function OnboardingPage() {
                   type="file"
                   accept="image/*"
                   className="hidden"
+                  disabled={saving}
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (file) void uploadPhoto(file)
@@ -433,200 +355,11 @@ export function OnboardingPage() {
               </label>
               <button
                 type="button"
-                className="w-full rounded-full border border-white/10 py-3.5 font-semibold text-white/70"
+                className="btn-lime w-full py-3.5 disabled:opacity-40"
                 disabled={saving}
-                onClick={() => setStep(2)}
+                onClick={() => void finishOnboarding()}
               >
-                {saving ? 'Uploading…' : preview ? 'Looks good — continue' : 'Skip for now'}
-              </button>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted">Pick up to 8 interests.</p>
-              {interestsLoading ? (
-                <p className="text-sm text-muted">Loading interests…</p>
-              ) : interests.length === 0 ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-red-300">Couldn’t load interests. Check your connection and try again.</p>
-                  <button
-                    type="button"
-                    className="btn-lime w-full py-3.5"
-                    onClick={() => {
-                      setInterestsLoading(true)
-                      api
-                        .interests()
-                        .then((res) => setInterests(res.interests))
-                        .catch(() => setInterests([]))
-                        .finally(() => setInterestsLoading(false))
-                    }}
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {interests.map((interest) => (
-                    <button
-                      key={interest.id}
-                      type="button"
-                      className={`chip ${form.interest_ids.includes(interest.id) ? 'chip-active' : ''}`}
-                      onClick={() => toggleInterest(interest.id)}
-                    >
-                      {interest.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                className="btn-lime w-full py-3.5"
-                disabled={form.interest_ids.length === 0}
-                onClick={() => setStep(3)}
-              >
-                Continue
-              </button>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <p className="text-sm font-semibold">Looking for</p>
-              {isCasualGoal(form.relationship_goal) && datingPreferredGender(form.gender) ? (
-                <>
-                  <p className="text-sm text-muted">
-                    For casual dating, we show you{' '}
-                    <span className="font-semibold text-lime">
-                      {datingPreferredGender(form.gender) === 'female' ? 'women' : 'men'}
-                    </span>{' '}
-                    only.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="chip chip-active">
-                      {datingPreferredGender(form.gender) === 'female' ? 'Women' : 'Men'}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: 'female', label: 'Women' },
-                    { id: 'male', label: 'Men' },
-                    { id: 'any', label: 'Everyone' },
-                  ].map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      className={`chip ${form.preferred_gender === g.id ? 'chip-active' : ''}`}
-                      onClick={() => setForm({ ...form, preferred_gender: g.id })}
-                    >
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <AgeRangeSlider
-                minAge={form.min_age}
-                maxAge={form.max_age}
-                onChange={(min_age, max_age) => setForm({ ...form, min_age, max_age })}
-              />
-
-              <CitySelect
-                label="Preferred city (optional)"
-                value={form.preferred_location}
-                allowAny
-                anyLabel="Any city"
-                placeholder="Filter matches by city"
-                onChange={(city) => setForm({ ...form, preferred_location: city })}
-              />
-              <button type="button" className="btn-lime w-full py-3.5" onClick={() => setStep(4)}>
-                Continue
-              </button>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-4">
-              <ProfileExtrasFields
-                form={{
-                  height_cm: form.height_cm,
-                  education: form.education,
-                  occupation: form.occupation,
-                  religion: form.religion,
-                  languages: form.languages,
-                  children: form.children,
-                  pets: form.pets,
-                  drinking: form.drinking,
-                  smoking: form.smoking,
-                  hobbies: form.hobbies,
-                }}
-                prompts={prompts}
-                showPrompts={false}
-                onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
-                onPromptsChange={setPrompts}
-              />
-              <button type="button" className="btn-lime w-full py-3.5" onClick={() => setStep(5)}>
-                Continue
-              </button>
-              <button
-                type="button"
-                className="w-full rounded-full border border-white/10 py-3.5 font-semibold text-white/70"
-                onClick={() => setStep(5)}
-              >
-                Skip details
-              </button>
-            </div>
-          )}
-
-          {step === 5 && (
-            <div className="space-y-4">
-              <p className="text-xs text-muted">Optional — pick up to 3 prompts ({prompts.length}/3).</p>
-              {PROFILE_PROMPTS.map((prompt) => {
-                const active = prompts.some((p) => p.prompt_key === prompt.key)
-                const answer = prompts.find((p) => p.prompt_key === prompt.key)?.answer || ''
-                const lockedOut = !active && prompts.length >= 3
-                return (
-                  <div key={prompt.key} className={`rounded-2xl bg-panel p-3 ${lockedOut ? 'opacity-40' : ''}`}>
-                    <button
-                      type="button"
-                      disabled={lockedOut}
-                      className={`text-left text-sm font-semibold ${active ? 'text-lime' : 'text-white/80'}`}
-                      onClick={() => {
-                        if (active) setPrompt(prompt.key, '')
-                        else if (!lockedOut) setPrompt(prompt.key, ' ')
-                      }}
-                    >
-                      {prompt.label}
-                    </button>
-                    {active && (
-                      <textarea
-                        className="field mt-2 min-h-20"
-                        maxLength={150}
-                        placeholder="Your answer"
-                        value={answer.trim() === '' ? '' : answer}
-                        onChange={(e) => setPrompt(prompt.key, e.target.value)}
-                      />
-                    )}
-                  </div>
-                )
-              })}
-              <button
-                type="button"
-                className="btn-lime w-full py-3.5"
-                disabled={saving}
-                onClick={() => void saveProfile()}
-              >
-                {saving ? 'Saving…' : 'Start discovering'}
-              </button>
-              <button
-                type="button"
-                className="w-full rounded-full border border-white/10 py-3.5 font-semibold text-white/70"
-                disabled={saving}
-                onClick={() => void saveProfile()}
-              >
-                Skip prompts
+                {saving ? 'Saving…' : preview ? 'Looks good — start discovering' : 'Skip photo for now'}
               </button>
             </div>
           )}

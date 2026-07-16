@@ -109,9 +109,14 @@ class User extends Authenticatable
 
     public function hasCompletedProfile(): bool
     {
-        return $this->profile !== null
-            && $this->interests()->exists()
-            && $this->preferences !== null;
+        $profile = $this->profile;
+        if (! $profile) {
+            return false;
+        }
+
+        return filled($profile->name)
+            && $profile->birth_date !== null
+            && in_array($profile->gender, ['male', 'female'], true);
     }
 
     public function age(): ?int
