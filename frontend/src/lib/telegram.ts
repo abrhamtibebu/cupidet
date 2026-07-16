@@ -26,6 +26,10 @@ type LegacyWebApp = {
   themeParams?: Record<string, string>
   ready?: () => void
   expand?: () => void
+  safeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
+  contentSafeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
+  onEvent?: (event: string, callback: () => void) => void
+  offEvent?: (event: string, callback: () => void) => void
   MainButton?: {
     setText: (text: string) => void
     show: () => void
@@ -97,6 +101,7 @@ export function initTelegram(): boolean {
         void viewport.mount().then(() => {
           if (viewport.expand.isAvailable()) viewport.expand()
           if (viewport.bindCssVars.isAvailable()) viewport.bindCssVars()
+          syncTelegramSafeAreas()
         })
       }
 
@@ -120,7 +125,123 @@ export function initTelegram(): boolean {
   }
 
   applyTelegramThemeVars()
+  syncTelegramSafeAreas()
+  bindSafeAreaListeners()
+  // Telegram often reports 0 insets on first tick; re-sync after layout settles
+  window.setTimeout(syncTelegramSafeAreas, 50)
+  window.setTimeout(syncTelegramSafeAreas, 300)
+  window.setTimeout(syncTelegramSafeAreas, 1000)
   return insideTelegram
+}
+
+/** Push Telegram + system safe-area insets into CSS vars used by .app-shell / BottomNav. */
+export function syncTelegramSafeAreas() {
+  const root = document.documentElement
+  const webApp = getLegacyWebApp()
+
+  let top = 0
+  let bottom = 0
+  let left = 0
+  let right = 0
+
+  const applyInset = (inset?: { top?: number; bottom?: number; left?: number; right?: number }) => {
+    if (!inset) return
+    top = Math.max(top, Number(inset.top) || 0)
+    bottom = Math.max(bottom, Number(inset.bottom) || 0)
+    left = Math.max(left, Number(inset.left) || 0)
+    right = Math.max(right, Number(inset.right) || 0)
+  }
+
+  applyInset(webApp?.safeAreaInset)
+  applyInset(webApp?.contentSafeAreaInset)
+
+  try {
+    if (typeof viewport.safeAreaInsetTop === 'function') {
+      top = Math.max(top, Number(viewport.safeAreaInsetTop()) || 0)
+      bottom = Math.max(bottom, Number(viewport.safeAreaInsetBottom()) || 0)
+      left = Math.max(left, Number(viewport.safeAreaInsetLeft()) || 0)
+      right = Math.max(right, Number(viewport.safeAreaInsetRight()) || 0)
+    }
+    if (typeof viewport.contentSafeAreaInsetTop === 'function') {
+      top = Math.max(top, Number(viewport.contentSafeAreaInsetTop()) || 0)
+      bottom = Math.max(bottom, Number(viewport.contentSafeAreaInsetBottom()) || 0)
+      left = Math.max(left, Number(viewport.contentSafeAreaInsetLeft()) || 0)
+      right = Math.max(right, Number(viewport.contentSafeAreaInsetRight()) || 0)
+    }
+  } catch {
+    /* SDK signals may be unavailable outside TMA */
+  }
+
+  // Read CSS vars Telegram / SDK may have already bound
+  const cs = getComputedStyle(root)
+  const readCssPx = (...names: string[]) => {
+    let value = 0
+    for (const name of names) {
+      const raw = cs.getPropertyValue(name).trim()
+      const n = Number.parseFloat(raw)
+      if (!Number.isNaN(n)) value = Math.max(value, n)
+    }
+    return value
+  }
+
+  top = Math.max(
+    top,
+    readCssPx(
+      '--tg-safe-area-inset-top',
+      '--tg-content-safe-area-inset-top',
+      '--tg-viewport-safe-area-inset-top',
+      '--tg-viewport-content-safe-area-inset-top',
+    ),
+  )
+  bottom = Math.max(
+    bottom,
+    readCssPx(
+      '--tg-safe-area-inset-bottom',
+      '--tg-content-safe-area-inset-bottom',
+      '--tg-viewport-safe-area-inset-bottom',
+      '--tg-viewport-content-safe-area-inset-bottom',
+    ),
+  )
+  left = Math.max(
+    left,
+    readCssPx(
+      '--tg-safe-area-inset-left',
+      '--tg-content-safe-area-inset-left',
+      '--tg-viewport-safe-area-inset-left',
+      '--tg-viewport-content-safe-area-inset-left',
+    ),
+  )
+  right = Math.max(
+    right,
+    readCssPx(
+      '--tg-safe-area-inset-right',
+      '--tg-content-safe-area-inset-right',
+      '--tg-viewport-safe-area-inset-right',
+      '--tg-viewport-content-safe-area-inset-right',
+    ),
+  )
+
+  root.style.setProperty('--app-safe-top', `${top}px`)
+  root.style.setProperty('--app-safe-bottom', `${bottom}px`)
+  root.style.setProperty('--app-safe-left', `${left}px`)
+  root.style.setProperty('--app-safe-right', `${right}px`)
+}
+
+let safeAreaListenersBound = false
+
+function bindSafeAreaListeners() {
+  if (safeAreaListenersBound) return
+  safeAreaListenersBound = true
+
+  const onChange = () => syncTelegramSafeAreas()
+  const webApp = getLegacyWebApp()
+  webApp?.onEvent?.('safeAreaChanged', onChange)
+  webApp?.onEvent?.('contentSafeAreaChanged', onChange)
+  webApp?.onEvent?.('fullscreenChanged', onChange)
+  webApp?.onEvent?.('viewportChanged', onChange)
+
+  window.addEventListener('resize', onChange)
+  window.visualViewport?.addEventListener('resize', onChange)
 }
 
 export function isInsideTelegram(): boolean {

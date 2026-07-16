@@ -20,6 +20,15 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  /* Synced from Telegram WebApp / SDK; fallbacks keep non-TG browsers working */
+  --app-safe-top: 0px;
+  --app-safe-bottom: 0px;
+  --app-safe-left: 0px;
+  --app-safe-right: 0px;
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--app-safe-top));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--app-safe-bottom));
+  --safe-left: max(env(safe-area-inset-left, 0px), var(--app-safe-left));
+  --safe-right: max(env(safe-area-inset-right, 0px), var(--app-safe-right));
 }
 
 * {
@@ -83,9 +92,10 @@ textarea {
   max-width: 430px;
   margin: 0 auto;
   padding:
-    max(12px, env(safe-area-inset-top))
-    16px
-    max(100px, calc(24px + env(safe-area-inset-bottom)));
+    max(12px, var(--safe-top))
+    max(16px, var(--safe-right))
+    calc(88px + var(--safe-bottom))
+    max(16px, var(--safe-left));
 }
 
 .btn-lime {

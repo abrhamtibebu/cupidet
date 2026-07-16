@@ -472,7 +472,7 @@ export function ChatPage() {
 
   return (
     <div className="mx-auto flex h-[100dvh] max-w-[430px] flex-col overflow-hidden bg-black">
-      <header className="flex shrink-0 items-center gap-3 border-b border-white/5 px-4 py-3 pt-[max(12px,env(safe-area-inset-top))]">
+      <header className="flex shrink-0 items-center gap-3 border-b border-white/5 px-4 py-3 pt-[max(12px,var(--safe-top))]">
         <button type="button" className="grid h-9 w-9 place-items-center text-white/70" onClick={() => navigate('/messages')} aria-label="Back">
           <IconBack size={20} />
         </button>
@@ -551,7 +551,7 @@ export function ChatPage() {
 
       <form
         onSubmit={(e) => void send(e)}
-        className="flex shrink-0 items-center gap-2 border-t border-white/5 px-3 py-3 pb-[max(12px,env(safe-area-inset-bottom))]"
+        className="flex shrink-0 items-center gap-2 border-t border-white/5 px-3 py-3 pb-[max(12px,var(--safe-bottom))]"
       >
         <input
           className="field flex-1"
