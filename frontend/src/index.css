@@ -93,7 +93,7 @@ textarea {
   max-width: 430px;
   margin: 0 auto;
   padding:
-    max(76px, calc(var(--safe-top) + 52px))
+    calc(var(--safe-top) + 45px)
     max(16px, var(--safe-right))
     max(100px, calc(24px + env(safe-area-inset-bottom, 0px)))
     max(16px, var(--safe-left));
@@ -231,7 +231,7 @@ textarea {
   display: flex;
   flex-direction: column;
   padding:
-    max(52px, calc(var(--safe-top) + 28px))
+    calc(var(--safe-top) + 45px)
     max(14px, var(--safe-right))
     calc(4.75rem + var(--safe-bottom))
     max(14px, var(--safe-left));
