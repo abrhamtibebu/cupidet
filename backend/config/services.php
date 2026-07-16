@@ -38,7 +38,7 @@ return [
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'bot_username' => env('TELEGRAM_BOT_USERNAME'),
-        'mini_app_url' => env('TELEGRAM_MINI_APP_URL', 'http://localhost:5173'),
+        'mini_app_url' => env('TELEGRAM_MINI_APP_URL', 'https://mingle-251.onrender.com'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
         'auth_max_age' => env('TELEGRAM_AUTH_MAX_AGE', 86400),
         'mock_auth' => env('TELEGRAM_MOCK_AUTH', false),

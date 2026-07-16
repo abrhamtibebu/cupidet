@@ -50,15 +50,19 @@ class TelegramBotService
         }
     }
 
-    public function webAppKeyboard(string $text = 'Open Cupid ET'): array
+    public function webAppKeyboard(string $text = 'Open Mingle 251'): array
     {
-        $url = config('services.telegram.mini_app_url');
+        $url = rtrim((string) config('services.telegram.mini_app_url'), '/');
+        // Guard against stale tunnel URLs still set on the server
+        if ($url === '' || str_contains($url, 'trycloudflare.com') || str_contains($url, 'localhost')) {
+            $url = 'https://mingle-251.onrender.com';
+        }
 
         return [
             'inline_keyboard' => [[
                 [
                     'text' => $text,
-                    'web_app' => ['url' => $url],
+                    'web_app' => ['url' => $url.'/'],
                 ],
             ]],
         ];
@@ -83,26 +87,26 @@ class TelegramBotService
         match ($command) {
             '/start' => $this->sendMessage(
                 $chatId,
-                "❤️ <b>Welcome to Cupid ET</b>\n\nMeet genuine people from the Habesha community.\n\nCreate your profile and discover meaningful connections.",
+                "❤️ <b>Welcome to Mingle 251</b>\n\nMeet genuine people from the Habesha community.\n\nCreate your profile and discover meaningful connections.",
                 $this->webAppKeyboard()
             ),
             '/profile' => $this->sendMessage(
                 $chatId,
-                'View and edit your Cupid ET profile.',
+                'View and edit your Mingle 251 profile.',
                 $this->webAppKeyboard('Open Profile')
             ),
             '/settings' => $this->sendMessage(
                 $chatId,
-                'Manage your Cupid ET account settings.',
+                'Manage your Mingle 251 account settings.',
                 $this->webAppKeyboard('Open Settings')
             ),
             '/help' => $this->sendMessage(
                 $chatId,
-                "Cupid ET Help\n\n/start — Open the app\n/profile — Your profile\n/settings — Account settings\n/help — This message\n\nNeed support? Contact the Cupid ET team."
+                "Mingle 251 Help\n\n/start — Open the app\n/profile — Your profile\n/settings — Account settings\n/help — This message\n\nNeed support? Contact the Mingle 251 team."
             ),
             default => $this->sendMessage(
                 $chatId,
-                'Use /start to open Cupid ET.',
+                'Use /start to open Mingle 251.',
                 $this->webAppKeyboard()
             ),
         };
