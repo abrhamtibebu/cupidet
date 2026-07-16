@@ -134,8 +134,13 @@ class ChatService
             'body' => trim($body),
         ]);
 
-        broadcast(new MessageSent($message));
-        SendMessageNotificationJob::dispatch($message->id);
+        $this->safeBroadcast(new MessageSent($message));
+
+        try {
+            SendMessageNotificationJob::dispatch($message->id);
+        } catch (\Throwable) {
+            // Queue unavailable — message is still saved.
+        }
 
         return $this->payload($message, $user->id);
     }
@@ -175,7 +180,7 @@ class ChatService
             ->values()
             ->all();
 
-        broadcast(new MessageStatusUpdated($match->id, $updated, 'delivered'));
+        $this->safeBroadcast(new MessageStatusUpdated($match->id, $updated, 'delivered'));
 
         return $updated;
     }
@@ -212,7 +217,7 @@ class ChatService
             ->values()
             ->all();
 
-        broadcast(new MessageStatusUpdated($match->id, $updated, 'read'));
+        $this->safeBroadcast(new MessageStatusUpdated($match->id, $updated, 'read'));
 
         return $updated;
     }
@@ -220,7 +225,21 @@ class ChatService
     public function typing(User $user, int $matchId, bool $typing): void
     {
         $match = $this->findAuthorizedMatch($user, $matchId);
-        broadcast(new UserTyping($match->id, $user->id, $typing));
+        $this->safeBroadcast(new UserTyping($match->id, $user->id, $typing));
+    }
+
+    /**
+     * Realtime is best-effort — never fail chat APIs when Reverb/Pusher is down.
+     */
+    private function safeBroadcast(object $event): void
+    {
+        try {
+            $pending = broadcast($event);
+            // Dispatch happens in PendingBroadcast::__destruct — force it inside try/catch.
+            unset($pending);
+        } catch (\Throwable) {
+            // Ignore broadcast transport errors.
+        }
     }
 
     private function payload(Message $message, int $viewerId): array

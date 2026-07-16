@@ -53,7 +53,8 @@ class AuthController extends Controller
     {
         $user = $request->user();
         $user->forceFill(['last_active' => now()])->save();
-        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
+        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $this->loadVerification($user);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -86,21 +87,57 @@ class AuthController extends Controller
         $user->fill($data)->save();
 
         return response()->json([
-            'user' => $this->userPayload($user->fresh()->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest'])),
+            'user' => $this->userPayload($this->withVerification($user->fresh()->load(['profile', 'photos', 'interests', 'preferences', 'prompts']))),
         ]);
+    }
+
+    private function withVerification($user)
+    {
+        $this->loadVerification($user);
+
+        return $user;
     }
 
     private function tokenResponse($user, int $status = 200): JsonResponse
     {
         $user->tokens()->delete();
         $token = $user->createToken('cupid-et')->plainTextToken;
-        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
+        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $this->loadVerification($user);
 
         return response()->json([
             'token' => $token,
             'user' => $this->userPayload($user),
             'onboarding_complete' => $user->hasCompletedProfile(),
         ], $status);
+    }
+
+    private function loadVerification($user): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('verification_requests')) {
+                $user->load('latestVerificationRequest');
+            }
+        } catch (\Throwable) {
+            // Never block auth if verification storage is unavailable.
+        }
+    }
+
+    private function verificationPayload($user): ?array
+    {
+        $request = $user->latestVerificationRequest ?? null;
+        if (! $request) {
+            return null;
+        }
+
+        return [
+            'id' => $request->id,
+            'status' => $request->status,
+            'selfie_url' => $request->selfie_url,
+            'created_at' => optional($request->created_at)?->toIso8601String(),
+            'reviewed_at' => optional($request->reviewed_at)?->toIso8601String(),
+            'notes' => $request->notes,
+        ];
     }
 
     private function userPayload($user): array
@@ -129,14 +166,7 @@ class AuthController extends Controller
                 'label' => $catalog[$p->prompt_key] ?? $p->prompt_key,
                 'answer' => $p->answer,
             ])->values(),
-            'verification_request' => $user->latestVerificationRequest ? [
-                'id' => $user->latestVerificationRequest->id,
-                'status' => $user->latestVerificationRequest->status,
-                'selfie_url' => $user->latestVerificationRequest->selfie_url,
-                'created_at' => optional($user->latestVerificationRequest->created_at)?->toIso8601String(),
-                'reviewed_at' => optional($user->latestVerificationRequest->reviewed_at)?->toIso8601String(),
-                'notes' => $user->latestVerificationRequest->notes,
-            ] : null,
+            'verification_request' => $this->verificationPayload($user),
         ];
     }
 }

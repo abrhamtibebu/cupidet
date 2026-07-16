@@ -15,7 +15,8 @@ class ProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user()->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
+        $user = $request->user()->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $this->loadVerification($user);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -212,7 +213,8 @@ class ProfileController extends Controller
             }
         });
 
-        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
+        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $this->loadVerification($user);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -239,9 +241,21 @@ class ProfileController extends Controller
         $query->delete();
     }
 
+    private function loadVerification($user): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('verification_requests')) {
+                $user->load('latestVerificationRequest');
+            }
+        } catch (\Throwable) {
+            // Ignore verification storage issues.
+        }
+    }
+
     private function userPayload($user): array
     {
         $catalog = config('cupid.prompts', []);
+        $request = $user->latestVerificationRequest ?? null;
 
         return [
             'id' => $user->id,
@@ -264,13 +278,13 @@ class ProfileController extends Controller
                 'label' => $catalog[$p->prompt_key] ?? $p->prompt_key,
                 'answer' => $p->answer,
             ])->values(),
-            'verification_request' => $user->latestVerificationRequest ? [
-                'id' => $user->latestVerificationRequest->id,
-                'status' => $user->latestVerificationRequest->status,
-                'selfie_url' => $user->latestVerificationRequest->selfie_url,
-                'created_at' => optional($user->latestVerificationRequest->created_at)?->toIso8601String(),
-                'reviewed_at' => optional($user->latestVerificationRequest->reviewed_at)?->toIso8601String(),
-                'notes' => $user->latestVerificationRequest->notes,
+            'verification_request' => $request ? [
+                'id' => $request->id,
+                'status' => $request->status,
+                'selfie_url' => $request->selfie_url,
+                'created_at' => optional($request->created_at)?->toIso8601String(),
+                'reviewed_at' => optional($request->reviewed_at)?->toIso8601String(),
+                'notes' => $request->notes,
             ] : null,
         ];
     }
