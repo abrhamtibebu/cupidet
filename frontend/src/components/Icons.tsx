@@ -25,30 +25,20 @@ function base({ size = 20, className, strokeWidth = 1.6, ...rest }: IconProps) {
 const HEART_D =
   'M12 20.5s-6.8-4.1-8.6-7.9C2.1 9.4 3.9 6.8 6.7 6.8c1.7 0 3 1 3.9 2.3.9-1.3 2.2-2.3 3.9-2.3 2.8 0 4.6 2.6 3.3 5.8C18.8 16.4 12 20.5 12 20.5Z'
 
-/** Explore / swipe deck — modern compass */
+/** Explore — magnifying glass (matches design) */
 export function IconDiscover(props: IconProps) {
   return (
-    <svg {...base({ strokeWidth: 1.65, ...props })}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="m14.9 9.1-1.55 5.15L8.2 15.8l1.55-5.15L14.9 9.1Z" />
-      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    <svg {...base({ strokeWidth: 1.85, ...props })}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.2 4.2" />
     </svg>
   )
 }
 
-/** People who liked you — elegant filled heart */
+/** People who liked you — outlined heart in nav, can fill via class */
 export function IconLikes(props: IconProps) {
-  const { size = 22, className, ...rest } = props
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      className={className}
-      fill="currentColor"
-      aria-hidden
-      {...rest}
-    >
+    <svg {...base({ strokeWidth: 1.75, ...props })}>
       <path d={HEART_D} />
     </svg>
   )
@@ -144,12 +134,13 @@ export function IconSuperLike(props: IconProps) {
   )
 }
 
-/** Rewind — counter-clockwise curved arrow */
+/** Rewind — counter-clockwise curved arrow with endpoint */
 export function IconRewind(props: IconProps) {
   return (
     <svg {...base({ strokeWidth: 1.85, ...props })}>
-      <path d="M7.2 8.1 4.4 10.9 7.2 13.7" />
-      <path d="M4.4 10.9H13a4.6 4.6 0 1 1 0 9.2" />
+      <path d="M8.4 7.6A6.4 6.4 0 1 0 18 12.2" />
+      <path d="M8.4 7.6 8.2 3.8M8.4 7.6l3.7-.9" />
+      <circle cx="18" cy="12.2" r="1.15" fill="currentColor" stroke="none" />
     </svg>
   )
 }

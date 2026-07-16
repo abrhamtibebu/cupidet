@@ -91,6 +91,14 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
   const languages = (card.languages || []).slice(0, 2).join(', ')
   const interests = (card.interests || []).slice(0, 3)
 
+  // Keep chip row compact so the card never forces page scroll
+  const attrChips: { key: string; icon: ReactNode; label: string }[] = []
+  if (card.height_cm) attrChips.push({ key: 'height', icon: <IconHeight size={12} />, label: `${card.height_cm} cm` })
+  if (languages) attrChips.push({ key: 'langs', icon: <IconLanguages size={12} />, label: languages })
+  interests.forEach((interest) => {
+    attrChips.push({ key: interest, icon: interestIcon(interest), label: interest })
+  })
+
   const nextPhoto = () => setPhotoIndex((i) => Math.min(photos.length - 1, i + 1))
   const prevPhoto = () => setPhotoIndex((i) => Math.max(0, i - 1))
 
@@ -125,7 +133,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
   }
 
   return (
-    <div className="relative">
+    <div className="relative h-full min-h-0">
       <motion.article
         className="discover-card relative z-10 touch-none will-change-transform [transform:translateZ(0)]"
         style={{ x, rotate }}
@@ -210,43 +218,33 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
           {locationLabel}
         </span>
 
-        <div className="absolute inset-x-0 bottom-0 z-20 px-5 pb-[5.75rem] pt-24">
+        <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-[5.6rem] pt-20">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="discover-card-name">
               {card.name}
               {card.age ? `, ${card.age}` : ''}
             </h2>
             {card.verified ? (
-              <span className="grid h-[1.35rem] w-[1.35rem] place-items-center rounded-full bg-[#3b82f6] text-white shadow-[0_0_0_2px_rgba(59,130,246,0.25)]">
+              <span className="grid h-[1.3rem] w-[1.3rem] place-items-center rounded-full bg-[#3b82f6] text-white shadow-[0_0_0_2px_rgba(59,130,246,0.25)]">
                 <IconVerified size={11} strokeWidth={2.6} />
               </span>
             ) : null}
           </div>
-          {subtitle ? <p className="mt-1.5 text-sm font-medium text-white/78">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 text-[13px] font-medium text-white/78">{subtitle}</p> : null}
 
-          <div className="mt-3.5 flex flex-wrap gap-2">
-            {card.height_cm ? (
-              <span className="discover-attr">
-                <IconHeight size={12} />
-                {card.height_cm} cm
-              </span>
-            ) : null}
-            {languages ? (
-              <span className="discover-attr">
-                <IconLanguages size={12} />
-                {languages}
-              </span>
-            ) : null}
-            {interests.map((interest) => (
-              <span key={interest} className="discover-attr">
-                {interestIcon(interest)}
-                {interest}
-              </span>
-            ))}
-          </div>
+          {attrChips.length > 0 ? (
+            <div className="discover-attrs mt-2.5">
+              {attrChips.map((chip) => (
+                <span key={chip.key} className="discover-attr">
+                  {chip.icon}
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
-        <div className="discover-actions">
+        <div className="discover-actions" aria-label="Profile actions">
           <button type="button" disabled={busy} onClick={onReport} className="discover-action" aria-label="Report">
             <IconReport size={17} />
           </button>
@@ -266,7 +264,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
             className="discover-action discover-action-like"
             aria-label="Like"
           >
-            <IconLike size={24} />
+            <IconLike size={26} />
           </button>
           <button
             type="button"

@@ -186,8 +186,8 @@ export function DiscoverPage() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="mb-4 flex items-end justify-between gap-3">
+    <div className="discover-shell">
+      <header className="discover-shell-header">
         <div className="discover-tabs">
           {(
             [
@@ -216,70 +216,74 @@ export function DiscoverPage() {
         </button>
       </header>
 
-      {error && <p className="mb-3 text-sm text-red-300">{error}</p>}
+      {error ? <p className="mb-2 shrink-0 text-sm text-red-300">{error}</p> : null}
 
-      {loading ? (
-        <div className="discover-card grid place-items-center text-muted">Loading profiles…</div>
-      ) : current ? (
-        <div className="relative">
-          {filtered[1] && (
-            <motion.div
-              key={`next-${filtered[1].id}`}
-              className="discover-card pointer-events-none absolute inset-x-0 top-0 z-0 will-change-transform [transform:translateZ(0)]"
-              initial={false}
-              animate={{ scale: 0.965, opacity: 0.85, y: 12 }}
-              transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <img
-                src={resolveMediaUrl(
-                  filtered[1].photos?.[0]?.image_url || filtered[1].photo_url,
-                  'https://i.pravatar.cc/800?u=next',
-                )}
-                alt=""
-                className="h-full w-full object-cover"
-                decoding="async"
-              />
-              <div className="absolute inset-0 bg-black/25" />
-            </motion.div>
-          )}
-          <AnimatePresence mode="sync" initial={false}>
-            <ProfileCard
-              key={current.id}
-              card={current}
-              onLike={() => void react('like')}
-              onSuperLike={() => void react('super')}
-              onPass={() => void onPass()}
-              onRewind={() => void onRewind()}
-              canRewind={canRewind}
-              onReport={() => setReportOpen(true)}
-            />
-          </AnimatePresence>
-        </div>
-      ) : (
-        <div className="discover-card grid place-items-center px-6 text-center">
-          <div>
-            <p className="text-xl font-bold">No more profiles</p>
-            <p className="mt-2 text-sm text-muted">
-              {canRewind
-                ? 'Rewind your last left swipe, or refresh for new people.'
-                : 'Check back later or adjust your filters.'}
-            </p>
-            <div className="mt-5 flex justify-center gap-3">
-              <button
-                type="button"
-                className="rounded-full border border-amber-300/40 px-5 py-3 text-sm font-semibold text-amber-300 disabled:opacity-40"
-                disabled={!canRewind}
-                onClick={() => void onRewind()}
+      <div className="discover-shell-stage">
+        {loading ? (
+          <div className="discover-card grid place-items-center text-muted">Loading profiles…</div>
+        ) : current ? (
+          <div className="discover-card-wrap">
+            {filtered[1] && (
+              <motion.div
+                key={`next-${filtered[1].id}`}
+                className="discover-card pointer-events-none absolute inset-0 z-0 will-change-transform [transform:translateZ(0)]"
+                initial={false}
+                animate={{ scale: 0.965, opacity: 0.85, y: 10 }}
+                transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
-                {rewinding ? 'Rewinding…' : 'Rewind'}
-              </button>
-              <button type="button" className="btn-lime px-5 py-3" onClick={() => void load()}>
-                Refresh
-              </button>
+                <img
+                  src={resolveMediaUrl(
+                    filtered[1].photos?.[0]?.image_url || filtered[1].photo_url,
+                    'https://i.pravatar.cc/800?u=next',
+                  )}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-black/25" />
+              </motion.div>
+            )}
+            <div className="relative z-10 h-full min-h-0">
+              <AnimatePresence mode="sync" initial={false}>
+                <ProfileCard
+                  key={current.id}
+                  card={current}
+                  onLike={() => void react('like')}
+                  onSuperLike={() => void react('super')}
+                  onPass={() => void onPass()}
+                  onRewind={() => void onRewind()}
+                  canRewind={canRewind}
+                  onReport={() => setReportOpen(true)}
+                />
+              </AnimatePresence>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="discover-card grid place-items-center px-6 text-center">
+            <div>
+              <p className="text-xl font-bold">No more profiles</p>
+              <p className="mt-2 text-sm text-muted">
+                {canRewind
+                  ? 'Rewind your last left swipe, or refresh for new people.'
+                  : 'Check back later or adjust your filters.'}
+              </p>
+              <div className="mt-5 flex justify-center gap-3">
+                <button
+                  type="button"
+                  className="rounded-full border border-amber-300/40 px-5 py-3 text-sm font-semibold text-amber-300 disabled:opacity-40"
+                  disabled={!canRewind}
+                  onClick={() => void onRewind()}
+                >
+                  {rewinding ? 'Rewinding…' : 'Rewind'}
+                </button>
+                <button type="button" className="btn-lime px-5 py-3" onClick={() => void load()}>
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <MatchModal
         open={!!matchUser}
