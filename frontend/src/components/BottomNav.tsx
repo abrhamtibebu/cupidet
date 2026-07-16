@@ -34,8 +34,8 @@ export function BottomNav() {
   const badges = useNavBadges()
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2 border-t border-white/5 bg-black/95 backdrop-blur-md pb-[var(--safe-bottom)]">
-      <div className="grid grid-cols-4 gap-1 px-2 pb-2.5 pt-2">
+    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2 border-t border-white/5 bg-black/95 backdrop-blur-md">
+      <div className="grid grid-cols-4 gap-1 px-2 pb-[max(10px,env(safe-area-inset-bottom))] pt-2">
         {items.map((item) => {
           const count =
             item.badgeKey === 'unreadMessages'
