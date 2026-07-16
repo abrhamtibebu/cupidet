@@ -472,7 +472,7 @@ export function ChatPage() {
 
   return (
     <div className="mx-auto flex h-[100dvh] max-w-[430px] flex-col overflow-hidden bg-black">
-      <header className="flex shrink-0 items-center gap-3 border-b border-white/5 px-4 py-3 pt-[max(28px,calc(var(--safe-top)+16px))]">
+      <header className="flex shrink-0 items-center gap-3 border-b border-white/5 px-4 py-3 pt-[max(40px,calc(var(--safe-top)+24px))]">
         <button type="button" className="grid h-9 w-9 place-items-center text-white/70" onClick={() => navigate('/messages')} aria-label="Back">
           <IconBack size={20} />
         </button>

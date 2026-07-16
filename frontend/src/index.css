@@ -92,7 +92,7 @@ textarea {
   max-width: 430px;
   margin: 0 auto;
   padding:
-    max(28px, calc(var(--safe-top) + 16px))
+    max(40px, calc(var(--safe-top) + 24px))
     max(16px, var(--safe-right))
     max(100px, calc(24px + env(safe-area-inset-bottom, 0px)))
     max(16px, var(--safe-left));
