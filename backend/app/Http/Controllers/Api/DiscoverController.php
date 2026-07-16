@@ -17,6 +17,7 @@ class DiscoverController extends Controller
 
         return response()->json([
             'data' => $users->map(fn ($u) => $discovery->cardPayload($u, $user))->values(),
+            'can_rewind' => $discovery->canRewind($user),
         ]);
     }
 }

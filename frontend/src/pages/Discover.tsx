@@ -19,7 +19,9 @@ export function DiscoverPage() {
   const { user, refresh } = useAuth()
   const navigate = useNavigate()
   const [cards, setCards] = useState<DiscoverCard[]>([])
-  const [history, setHistory] = useState<DiscoverCard[]>([])
+  /** Successful left-swipes available to undo (most recent last). */
+  const [passStack, setPassStack] = useState<DiscoverCard[]>([])
+  const [serverCanRewind, setServerCanRewind] = useState(false)
   const [tab, setTab] = useState<Tab>('all')
   const [loading, setLoading] = useState(true)
   const [matchUser, setMatchUser] = useState<DiscoverCard | null>(null)
@@ -36,6 +38,7 @@ export function DiscoverPage() {
     try {
       const res = await api.discover()
       setCards(res.data as DiscoverCard[])
+      setServerCanRewind(Boolean(res.can_rewind))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {
@@ -66,28 +69,26 @@ export function DiscoverPage() {
   }, [cards, tab, cityFilter])
 
   const current = filtered[0]
-  const canRewind = history.length > 0 && !rewinding
+  const canRewind = (passStack.length > 0 || serverCanRewind) && !rewinding
 
-  const advance = (card: DiscoverCard) => {
-    setHistory((prev) => [...prev, card])
-    setCards((prev) => prev.filter((c) => c.id !== card.id))
+  const removeFromDeck = (cardId: number) => {
+    setCards((prev) => prev.filter((c) => c.id !== cardId))
   }
 
   const react = async (type: 'like' | 'super') => {
     if (!current) return
     const liked = current
     telegramHaptic(type === 'super' ? 'heavy' : 'medium')
-    advance(liked)
+    removeFromDeck(liked.id)
     try {
       const res = await api.like(liked.id, type)
       if (res.matched) {
         telegramHaptic('success')
-        setHistory((prev) => prev.filter((c) => c.id !== liked.id))
         setMatchUser((res.other_user as DiscoverCard) || liked)
         setMatchId(res.match?.id ?? null)
       }
     } catch {
-      /* keep browsing */
+      setCards((prev) => [liked, ...prev.filter((c) => c.id !== liked.id)])
     }
   }
 
@@ -95,12 +96,14 @@ export function DiscoverPage() {
     if (!current) return
     const passed = current
     telegramHaptic('light')
-    advance(passed)
+    removeFromDeck(passed.id)
     try {
-      await api.pass(passed.id)
+      const res = await api.pass(passed.id)
+      setPassStack((prev) => [...prev, passed])
+      setServerCanRewind(res.can_rewind !== false)
     } catch {
-      setHistory((prev) => prev.filter((c) => c.id !== passed.id))
       setCards((prev) => [passed, ...prev.filter((c) => c.id !== passed.id)])
+      setError('Could not pass — try again')
     }
   }
 
@@ -108,18 +111,28 @@ export function DiscoverPage() {
     if (!canRewind) return
     setRewinding(true)
     setError('')
-    const localCard = history[history.length - 1]
     try {
       const res = await api.rewind()
-      const restored = (res.user as DiscoverCard | null | undefined) || localCard
-      setHistory((prev) => prev.slice(0, -1))
-      setCards((prev) => {
-        const without = prev.filter((c) => c.id !== restored.id)
-        return [restored, ...without]
-      })
-      setTab('all')
+      const restored =
+        (res.user as DiscoverCard | null | undefined) ||
+        passStack[passStack.length - 1] ||
+        null
+
+      setPassStack((prev) => prev.slice(0, -1))
+      setServerCanRewind(Boolean(res.can_rewind))
+
+      if (restored) {
+        setCards((prev) => {
+          const without = prev.filter((c) => c.id !== restored.id)
+          return [restored, ...without]
+        })
+        setTab('all')
+        telegramHaptic('success')
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Nothing to rewind')
+      setServerCanRewind(false)
+      setPassStack([])
+      setError(e instanceof Error ? e.message : 'No left swipe to undo')
     } finally {
       setRewinding(false)
     }
@@ -129,12 +142,13 @@ export function DiscoverPage() {
     if (!current) return
     const target = current
     setReportOpen(false)
-    advance(target)
+    removeFromDeck(target.id)
     try {
       await api.report(target.id, reason)
       if (block) await api.block(target.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Report failed')
+      setCards((prev) => [target, ...prev.filter((c) => c.id !== target.id)])
     }
   }
 
@@ -208,7 +222,6 @@ export function DiscoverPage() {
         <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel text-muted">Loading profiles…</div>
       ) : current ? (
         <div className="relative">
-          {/* Next card sits under the top one and rises into place */}
           {filtered[1] && (
             <motion.div
               key={`next-${filtered[1].id}`}
@@ -246,15 +259,19 @@ export function DiscoverPage() {
         <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel px-6 text-center">
           <div>
             <p className="text-xl font-bold">No more profiles</p>
-            <p className="mt-2 text-sm text-muted">Check back later, rewind, or adjust your filters.</p>
+            <p className="mt-2 text-sm text-muted">
+              {canRewind
+                ? 'Rewind your last left swipe, or refresh for new people.'
+                : 'Check back later or adjust your filters.'}
+            </p>
             <div className="mt-5 flex justify-center gap-3">
               <button
                 type="button"
-                className="rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40"
+                className="rounded-full border border-amber-300/40 px-5 py-3 text-sm font-semibold text-amber-300 disabled:opacity-40"
                 disabled={!canRewind}
                 onClick={() => void onRewind()}
               >
-                Rewind
+                {rewinding ? 'Rewinding…' : 'Rewind'}
               </button>
               <button type="button" className="btn-lime px-5 py-3" onClick={() => void load()}>
                 Refresh

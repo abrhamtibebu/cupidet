@@ -99,19 +99,32 @@ export const api = {
     if (isPrimary) form.append('is_primary', '1')
     return request<{ photo: unknown }>('/photos', { method: 'POST', body: form })
   },
+  uploadVerificationSelfie: async (file: File) => {
+    const form = new FormData()
+    form.append('selfie', file)
+    return request<{ verification_request: unknown; message: string }>('/verification/selfie', {
+      method: 'POST',
+      body: form,
+    })
+  },
   setPrimaryPhoto: (id: number) =>
     request(`/photos/${id}/primary`, { method: 'PUT' }),
   deletePhoto: (id: number) => request(`/photos/${id}`, { method: 'DELETE' }),
-  discover: () => request<{ data: unknown[] }>('/discover'),
+  discover: () => request<{ data: unknown[]; can_rewind?: boolean }>('/discover'),
   like: (userId: number, type: 'like' | 'super' = 'like') =>
     request<{ matched: boolean; other_user?: unknown; match?: { id: number } }>('/like', {
       method: 'POST',
       body: JSON.stringify({ user_id: userId, type }),
     }),
   pass: (userId: number) =>
-    request('/pass', { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+    request<{ pass: unknown; can_rewind?: boolean }>('/pass', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    }),
   rewind: () =>
-    request<{ undone: string; user?: DiscoverCard | null }>('/rewind', { method: 'POST' }),
+    request<{ undone: string; user?: DiscoverCard | null; can_rewind?: boolean }>('/rewind', {
+      method: 'POST',
+    }),
   matches: () => request<{ data: unknown[] }>('/matches'),
   likesReceived: () => request<{ data: unknown[] }>('/likes/received'),
   conversations: () => request<{ data: unknown[] }>('/conversations'),

@@ -7,6 +7,7 @@ use App\Models\MatchModel;
 use App\Models\Photo;
 use App\Models\Report;
 use App\Models\User;
+use App\Models\VerificationRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -119,6 +120,56 @@ class ResourcesController extends Controller
         return response()->json(['photo' => [
             'id' => $photo->id,
             'status' => $photo->status,
+        ]]);
+    }
+
+    public function verifications(Request $request): JsonResponse
+    {
+        $status = $request->string('status')->toString() ?: null;
+
+        $query = VerificationRequest::query()->with(['user.profile'])->latest();
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $requests = $query->limit(60)->get()->map(fn (VerificationRequest $verification) => [
+            'id' => $verification->id,
+            'selfie_url' => $verification->selfie_url,
+            'status' => $verification->status,
+            'notes' => $verification->notes,
+            'username' => $verification->user?->username,
+            'name' => $verification->user?->profile?->name,
+            'verified' => (bool) $verification->user?->verified,
+            'created_at' => optional($verification->created_at)?->toIso8601String(),
+            'reviewed_at' => optional($verification->reviewed_at)?->toIso8601String(),
+        ]);
+
+        return response()->json(['data' => $requests]);
+    }
+
+    public function updateVerification(Request $request, VerificationRequest $verification): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:pending,approved,rejected'],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
+        ]);
+
+        $verification->fill([
+            'status' => $data['status'],
+            'notes' => $data['notes'] ?? $verification->notes,
+            'reviewed_at' => $data['status'] === 'pending' ? null : now(),
+            'reviewed_by' => $data['status'] === 'pending' ? null : $request->user()->id,
+        ])->save();
+
+        $verification->user?->forceFill([
+            'verified' => $data['status'] === 'approved',
+        ])->save();
+
+        return response()->json(['verification' => [
+            'id' => $verification->id,
+            'status' => $verification->status,
+            'reviewed_at' => optional($verification->reviewed_at)?->toIso8601String(),
+            'notes' => $verification->notes,
         ]]);
     }
 

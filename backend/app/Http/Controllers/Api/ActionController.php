@@ -33,7 +33,10 @@ class ActionController extends Controller
 
         $pass = $discovery->pass($request->user(), (int) $data['user_id']);
 
-        return response()->json(['pass' => $pass]);
+        return response()->json([
+            'pass' => $pass,
+            'can_rewind' => true,
+        ]);
     }
 
     public function rewind(Request $request, DiscoveryService $discovery): JsonResponse

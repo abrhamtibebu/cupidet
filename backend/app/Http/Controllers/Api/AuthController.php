@@ -53,7 +53,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         $user->forceFill(['last_active' => now()])->save();
-        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -86,7 +86,7 @@ class AuthController extends Controller
         $user->fill($data)->save();
 
         return response()->json([
-            'user' => $this->userPayload($user->fresh()->load(['profile', 'photos', 'interests', 'preferences', 'prompts'])),
+            'user' => $this->userPayload($user->fresh()->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest'])),
         ]);
     }
 
@@ -94,7 +94,7 @@ class AuthController extends Controller
     {
         $user->tokens()->delete();
         $token = $user->createToken('cupid-et')->plainTextToken;
-        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
 
         return response()->json([
             'token' => $token,
@@ -129,6 +129,14 @@ class AuthController extends Controller
                 'label' => $catalog[$p->prompt_key] ?? $p->prompt_key,
                 'answer' => $p->answer,
             ])->values(),
+            'verification_request' => $user->latestVerificationRequest ? [
+                'id' => $user->latestVerificationRequest->id,
+                'status' => $user->latestVerificationRequest->status,
+                'selfie_url' => $user->latestVerificationRequest->selfie_url,
+                'created_at' => optional($user->latestVerificationRequest->created_at)?->toIso8601String(),
+                'reviewed_at' => optional($user->latestVerificationRequest->reviewed_at)?->toIso8601String(),
+                'notes' => $user->latestVerificationRequest->notes,
+            ] : null,
         ];
     }
 }

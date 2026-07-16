@@ -61,6 +61,14 @@ export type User = {
   interests?: Interest[]
   preferences?: Preferences | null
   prompts?: ProfilePrompt[]
+  verification_request?: {
+    id: number
+    status: 'pending' | 'approved' | 'rejected'
+    selfie_url?: string | null
+    created_at?: string | null
+    reviewed_at?: string | null
+    notes?: string | null
+  } | null
 }
 
 export type DiscoverCard = {

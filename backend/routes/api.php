@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DiscoverController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SafetyController;
+use App\Http\Controllers\Api\VerificationController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/matches', [AdminResourcesController::class, 'matches']);
         Route::get('/photos', [AdminResourcesController::class, 'photos']);
         Route::patch('/photos/{photo}', [AdminResourcesController::class, 'updatePhoto']);
+        Route::get('/verifications', [AdminResourcesController::class, 'verifications']);
+        Route::patch('/verifications/{verification}', [AdminResourcesController::class, 'updateVerification']);
         Route::get('/reports', [AdminResourcesController::class, 'reports']);
         Route::patch('/reports/{report}', [AdminResourcesController::class, 'updateReport']);
     });
@@ -58,6 +61,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
     Route::post('/photos', [PhotoController::class, 'store']);
     Route::put('/photos/{photo}/primary', [PhotoController::class, 'setPrimary']);
     Route::delete('/photos/{photo}', [PhotoController::class, 'destroy']);
+    Route::post('/verification/selfie', [VerificationController::class, 'store'])->middleware('throttle:5,60');
 
     Route::get('/discover', [DiscoverController::class, 'index']);
     Route::post('/like', [ActionController::class, 'like'])->middleware('throttle:60,1');

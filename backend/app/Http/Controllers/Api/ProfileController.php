@@ -15,7 +15,7 @@ class ProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user()->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $user = $request->user()->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -212,7 +212,7 @@ class ProfileController extends Controller
             }
         });
 
-        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
+        $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts', 'latestVerificationRequest']);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -264,6 +264,14 @@ class ProfileController extends Controller
                 'label' => $catalog[$p->prompt_key] ?? $p->prompt_key,
                 'answer' => $p->answer,
             ])->values(),
+            'verification_request' => $user->latestVerificationRequest ? [
+                'id' => $user->latestVerificationRequest->id,
+                'status' => $user->latestVerificationRequest->status,
+                'selfie_url' => $user->latestVerificationRequest->selfie_url,
+                'created_at' => optional($user->latestVerificationRequest->created_at)?->toIso8601String(),
+                'reviewed_at' => optional($user->latestVerificationRequest->reviewed_at)?->toIso8601String(),
+                'notes' => $user->latestVerificationRequest->notes,
+            ] : null,
         ];
     }
 }

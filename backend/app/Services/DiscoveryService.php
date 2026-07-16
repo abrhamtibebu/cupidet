@@ -181,7 +181,7 @@ class DiscoveryService
     }
 
     /**
-     * Undo the most recent pass or unmatched like (Tinder-style rewind).
+     * Undo the most recent left swipe (pass).
      */
     public function rewind(User $user): array
     {
@@ -190,51 +190,29 @@ class DiscoveryService
             ->latest('id')
             ->first();
 
-        $lastLike = Like::query()
-            ->where('sender_id', $user->id)
-            ->latest('id')
-            ->get()
-            ->first(function (Like $like) use ($user) {
-                [$one, $two] = MatchModel::orderedPair($user->id, $like->receiver_id);
-
-                return ! MatchModel::query()
-                    ->where('user_one', $one)
-                    ->where('user_two', $two)
-                    ->exists();
-            });
-
-        if (! $lastPass && ! $lastLike) {
+        if (! $lastPass) {
             throw ValidationException::withMessages([
-                'rewind' => 'Nothing to rewind.',
+                'rewind' => 'No left swipe to undo.',
             ]);
         }
 
-        $undoPass = false;
-        if ($lastPass && ! $lastLike) {
-            $undoPass = true;
-        } elseif ($lastPass && $lastLike) {
-            $undoPass = $lastPass->created_at->gte($lastLike->created_at);
-        }
+        $receiverId = (int) $lastPass->receiver_id;
+        $lastPass->delete();
 
-        if ($undoPass && $lastPass) {
-            $receiverId = (int) $lastPass->receiver_id;
-            $lastPass->delete();
-            $restored = User::query()->with(['profile', 'photos', 'interests', 'primaryPhoto', 'prompts'])->find($receiverId);
-
-            return [
-                'undone' => 'pass',
-                'user' => $restored ? $this->cardPayload($restored, $user) : null,
-            ];
-        }
-
-        $receiverId = (int) $lastLike->receiver_id;
-        $lastLike->delete();
-        $restored = User::query()->with(['profile', 'photos', 'interests', 'primaryPhoto', 'prompts'])->find($receiverId);
+        $restored = User::query()
+            ->with(['profile', 'photos', 'interests', 'primaryPhoto', 'prompts'])
+            ->find($receiverId);
 
         return [
-            'undone' => 'like',
+            'undone' => 'pass',
             'user' => $restored ? $this->cardPayload($restored, $user) : null,
+            'can_rewind' => $this->canRewind($user),
         ];
+    }
+
+    public function canRewind(User $user): bool
+    {
+        return Pass::query()->where('sender_id', $user->id)->exists();
     }
 
     public function matches(User $user): Collection

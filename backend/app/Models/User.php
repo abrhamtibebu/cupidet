@@ -57,6 +57,16 @@ class User extends Authenticatable
         return $this->hasMany(Photo::class);
     }
 
+    public function verificationRequests(): HasMany
+    {
+        return $this->hasMany(VerificationRequest::class);
+    }
+
+    public function latestVerificationRequest(): HasOne
+    {
+        return $this->hasOne(VerificationRequest::class)->latestOfMany();
+    }
+
     public function primaryPhoto(): HasOne
     {
         return $this->hasOne(Photo::class)->where('is_primary', true);

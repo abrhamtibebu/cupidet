@@ -37,6 +37,10 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
   const passOpacity = useTransform(x, [-70, -8], [1, 0])
   const likeScale = useTransform(x, [8, 100], [0.92, 1.06])
   const passScale = useTransform(x, [-100, -8], [1.06, 0.92])
+  const likeOverlayOpacity = useTransform(x, [12, 130], [0, 0.28])
+  const passOverlayOpacity = useTransform(x, [-130, -12], [0.28, 0])
+  const likeBorderOpacity = useTransform(x, [16, 120], [0, 0.9])
+  const passBorderOpacity = useTransform(x, [-120, -16], [0.9, 0])
 
   useEffect(() => {
     // Soft rise from the peeked next-card scale — no heavy remount bounce
@@ -122,6 +126,27 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 bg-emerald-400 mix-blend-screen"
+          style={{ opacity: forcedBadge === 'like' ? 0.28 : likeOverlayOpacity }}
+        />
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 bg-rose-500 mix-blend-screen"
+          style={{ opacity: forcedBadge === 'pass' ? 0.24 : passOverlayOpacity }}
+        />
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 rounded-[28px] border-[3px] border-emerald-300 shadow-[inset_0_0_40px_rgba(52,211,153,0.22)]"
+          style={{ opacity: forcedBadge === 'like' ? 1 : likeBorderOpacity }}
+        />
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 rounded-[28px] border-[3px] border-rose-400 shadow-[inset_0_0_40px_rgba(244,63,94,0.2)]"
+          style={{ opacity: forcedBadge === 'pass' ? 1 : passBorderOpacity }}
+        />
+
         <button type="button" className="absolute inset-y-0 left-0 z-10 w-1/3" onClick={prevPhoto} aria-label="Previous photo" />
         <button type="button" className="absolute inset-y-0 right-0 z-10 w-1/3" onClick={nextPhoto} aria-label="Next photo" />
 
@@ -130,7 +155,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
             opacity: forcedBadge === 'like' ? 1 : likeOpacity,
             scale: forcedBadge === 'like' ? 1.06 : likeScale,
           }}
-          className="pointer-events-none absolute left-5 top-16 z-20 origin-left rounded-xl border-[3px] border-lime bg-black/25 px-3.5 py-1.5 text-base font-black uppercase tracking-[0.18em] text-lime backdrop-blur-sm"
+          className="pointer-events-none absolute left-5 top-16 z-20 origin-left rounded-xl border-[3px] border-emerald-300 bg-emerald-950/35 px-3.5 py-1.5 text-base font-black uppercase tracking-[0.18em] text-emerald-200 backdrop-blur-sm"
         >
           Like
         </motion.div>
@@ -139,7 +164,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
             opacity: forcedBadge === 'pass' ? 1 : passOpacity,
             scale: forcedBadge === 'pass' ? 1.06 : passScale,
           }}
-          className="pointer-events-none absolute right-5 top-16 z-20 origin-right rounded-xl border-[3px] border-white bg-black/25 px-3.5 py-1.5 text-base font-black uppercase tracking-[0.18em] text-white backdrop-blur-sm"
+          className="pointer-events-none absolute right-5 top-16 z-20 origin-right rounded-xl border-[3px] border-rose-400 bg-rose-950/35 px-3.5 py-1.5 text-base font-black uppercase tracking-[0.18em] text-rose-100 backdrop-blur-sm"
         >
           Pass
         </motion.div>

@@ -115,6 +115,15 @@ export const adminApi = {
     ),
   updatePhoto: (id: number, status: string) =>
     request(`/photos/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  verifications: (status?: string) =>
+    request<{ data: Record<string, unknown>[] }>(
+      `/verifications${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+    ),
+  updateVerification: (id: number, status: string, notes?: string) =>
+    request(`/verifications/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, notes }),
+    }),
   reports: (status?: string) =>
     request<{ data: Record<string, unknown>[] }>(
       `/reports${status ? `?status=${encodeURIComponent(status)}` : ''}`,
