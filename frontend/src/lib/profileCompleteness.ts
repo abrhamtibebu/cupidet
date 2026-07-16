@@ -31,9 +31,19 @@ export type ProfileCompletenessUser = {
 
 const CHECKS: { key: string; label: string; done: (u: ProfileCompletenessUser) => boolean }[] = [
   {
-    key: 'photo',
-    label: 'Add a photo',
-    done: (u) => (u.photos?.length ?? 0) > 0 || Boolean(u.photo_url),
+    key: 'photo_1',
+    label: 'Add your first photo',
+    done: (u) => (u.photos?.length ?? 0) >= 1,
+  },
+  {
+    key: 'photo_2',
+    label: 'Add a second photo',
+    done: (u) => (u.photos?.length ?? 0) >= 2,
+  },
+  {
+    key: 'photo_3',
+    label: 'Add a third photo',
+    done: (u) => (u.photos?.length ?? 0) >= 3,
   },
   {
     key: 'about',

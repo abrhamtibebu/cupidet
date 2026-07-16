@@ -67,6 +67,7 @@ export function DiscoverPage() {
 
   const current = filtered[0]
   const canRewind = history.length > 0 && !rewinding
+  const deckCount = filtered.length
 
   const advance = (card: DiscoverCard) => {
     setHistory((prev) => [...prev, card])
@@ -172,49 +173,79 @@ export function DiscoverPage() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-full bg-panel p-1">
+    <div className="app-shell relative overflow-hidden">
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(223,252,1,0.18),transparent_62%)]" />
+
+      <header className="relative z-10 mb-4">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-lime">Discover</p>
+            <h1 className="mt-1 text-3xl font-black tracking-[-0.06em] text-white">Meet someone real</h1>
+            <p className="mt-1 text-sm text-muted">
+              {deckCount > 0 ? `${deckCount} profiles waiting` : 'Fresh matches from the Habesha community'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/10 bg-panel/90 text-lime shadow-xl"
+            aria-label="Filters"
+          >
+            <IconFilters size={21} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1 overflow-x-auto rounded-[22px] border border-white/8 bg-panel/80 p-1 shadow-lg backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             [
               ['all', 'All'],
               ['online', 'Online'],
-              ['location', cityFilter ? cityFilter.split(' ')[0] : 'Location'],
+              ['location', cityFilter ? cityFilter.split(' ')[0] : 'Near me'],
             ] as const
           ).map(([id, label]) => (
             <button
               key={id}
               type="button"
-              className={`nav-pill ${tab === id ? 'nav-pill-active' : ''}`}
+              className={`shrink-0 rounded-[18px] px-4 py-2 text-sm font-bold transition ${
+                tab === id ? 'bg-lime text-ink shadow-lg shadow-lime/10' : 'text-white/55'
+              }`}
               onClick={() => setTab(id)}
             >
               {label}
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => setFiltersOpen(true)}
-          className="grid h-10 w-10 place-items-center rounded-full bg-panel text-lime"
-          aria-label="Filters"
-        >
-          <IconFilters size={20} />
-        </button>
       </header>
 
       {error && <p className="mb-3 text-sm text-red-300">{error}</p>}
 
       {loading ? (
-        <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel text-muted">Loading profiles…</div>
+        <div className="grid h-[68dvh] min-h-[560px] place-items-center rounded-[34px] border border-white/10 bg-panel/80 text-center shadow-2xl">
+          <div>
+            <div className="mx-auto mb-4 h-16 w-16 animate-pulse rounded-full bg-lime/25" />
+            <p className="text-lg font-bold text-white">Finding profiles…</p>
+            <p className="mt-1 text-sm text-muted">Tuning your deck for better matches.</p>
+          </div>
+        </div>
       ) : current ? (
         <div className="relative">
-          {/* Next card sits under the top one and rises into place */}
+          {filtered[2] && (
+            <motion.div
+              key={`third-${filtered[2].id}`}
+              className="pointer-events-none absolute inset-x-5 top-6 z-0 h-[68dvh] min-h-[560px] overflow-hidden rounded-[34px] border border-white/6 bg-panel will-change-transform [transform:translateZ(0)]"
+              initial={false}
+              animate={{ scale: 0.92, opacity: 0.35, y: 22 }}
+              transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="h-full w-full bg-gradient-to-br from-panel to-panel-2" />
+            </motion.div>
+          )}
           {filtered[1] && (
             <motion.div
               key={`next-${filtered[1].id}`}
-              className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[64dvh] overflow-hidden rounded-[28px] will-change-transform [transform:translateZ(0)]"
+              className="pointer-events-none absolute inset-x-3 top-3 z-0 h-[68dvh] min-h-[560px] overflow-hidden rounded-[34px] border border-white/8 will-change-transform [transform:translateZ(0)]"
               initial={false}
-              animate={{ scale: 0.965, opacity: 0.85, y: 12 }}
+              animate={{ scale: 0.95, opacity: 0.68, y: 12 }}
               transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
               <img
@@ -226,7 +257,7 @@ export function DiscoverPage() {
                 className="h-full w-full object-cover"
                 decoding="async"
               />
-              <div className="absolute inset-0 bg-black/25" />
+              <div className="absolute inset-0 bg-black/42" />
             </motion.div>
           )}
           <AnimatePresence mode="sync" initial={false}>
@@ -243,10 +274,10 @@ export function DiscoverPage() {
           </AnimatePresence>
         </div>
       ) : (
-        <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel px-6 text-center">
+        <div className="grid h-[68dvh] min-h-[560px] place-items-center rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_50%_0%,rgba(223,252,1,0.12),transparent_45%),#121212] px-6 text-center shadow-2xl">
           <div>
-            <p className="text-xl font-bold">No more profiles</p>
-            <p className="mt-2 text-sm text-muted">Check back later, rewind, or adjust your filters.</p>
+            <p className="text-3xl font-black tracking-[-0.05em]">You’re all caught up</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Try a wider age range, another city, or check back when more people join.</p>
             <div className="mt-5 flex justify-center gap-3">
               <button
                 type="button"
