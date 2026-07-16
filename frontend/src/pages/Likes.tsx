@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth'
 import type { DiscoverCard } from '../types'
 import { BottomNav } from '../components/BottomNav'
 import { MatchModal } from '../components/MatchModal'
-import { IconBack } from '../components/Icons'
+import { IconBack, IconLike } from '../components/Icons'
 import { useNavBadges } from '../lib/navBadges'
 import { telegramHaptic } from '../lib/telegram'
 import { resolveMediaUrl } from '../lib/media'
@@ -86,8 +86,8 @@ export function LikesPage() {
                 decoding="async"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
-              <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-lime">
-                ♥ {card.compatibility_score ?? 95}%
+              <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-heart">
+                <IconLike size={10} /> {card.compatibility_score ?? 95}%
               </span>
               <div className="absolute inset-x-0 bottom-0 p-3">
                 {card.location && <p className="text-[11px] text-white/70">{card.location}</p>}

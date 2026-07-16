@@ -8,6 +8,8 @@
   --color-lime: #dffc01;
   --color-lime-dark: #c5e000;
   --color-muted: #9a9a9a;
+  --color-heart: #ff4d6d;
+  --color-heart-deep: #e11d48;
   --font-sans: "DM Sans", "Segoe UI", sans-serif;
 }
 
@@ -169,18 +171,19 @@ textarea {
   height: 64px;
 }
 
-.action-circle-pass {
-  color: #ffffff;
-}
-
 .action-circle-like {
-  background: var(--color-lime);
-  color: #000000;
+  background: linear-gradient(145deg, #ff6b8a 0%, var(--color-heart) 48%, var(--color-heart-deep) 100%);
+  color: #ffffff;
   border-color: transparent;
+  box-shadow: 0 10px 28px rgba(225, 29, 72, 0.35);
 }
 
 .action-circle-super {
-  color: #38bdf8;
+  color: #7dd3fc;
+}
+
+.action-circle-pass {
+  color: #f8fafc;
 }
 
 .action-circle-lime {

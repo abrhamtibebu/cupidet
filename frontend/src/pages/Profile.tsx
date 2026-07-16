@@ -349,9 +349,13 @@ export function ProfilePage() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-white">Complete your profile</p>
               <p className="mt-1 text-xs text-muted">
-                {completeness.missing[0]
-                  ? `Next: ${completeness.missing[0]}`
-                  : 'Add a few more details to stand out.'}
+                {completeness.photoCount < 6
+                  ? `Photos ${completeness.photoCount}/6 · ${
+                      completeness.missing[0] ? `Next: ${completeness.missing[0]}` : 'Keep going'
+                    }`
+                  : completeness.missing[0]
+                    ? `Next: ${completeness.missing[0]}`
+                    : 'Add a few more details to stand out.'}
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-lime px-2.5 py-1 text-xs font-bold text-ink">

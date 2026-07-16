@@ -29,21 +29,29 @@ export type ProfileCompletenessUser = {
   } | null
 }
 
+const MAX_PHOTOS = 6
+
+function photoCount(u: ProfileCompletenessUser) {
+  const uploaded = u.photos?.length ?? 0
+  if (uploaded > 0) return uploaded
+  return u.photo_url ? 1 : 0
+}
+
 const CHECKS: { key: string; label: string; done: (u: ProfileCompletenessUser) => boolean }[] = [
   {
     key: 'photo_1',
     label: 'Add your first photo',
-    done: (u) => (u.photos?.length ?? 0) >= 1,
-  },
-  {
-    key: 'photo_2',
-    label: 'Add a second photo',
-    done: (u) => (u.photos?.length ?? 0) >= 2,
+    done: (u) => photoCount(u) >= 1,
   },
   {
     key: 'photo_3',
-    label: 'Add a third photo',
-    done: (u) => (u.photos?.length ?? 0) >= 3,
+    label: 'Upload 3 photos',
+    done: (u) => photoCount(u) >= 3,
+  },
+  {
+    key: 'photo_6',
+    label: `Fill your gallery (${MAX_PHOTOS} photos)`,
+    done: (u) => photoCount(u) >= MAX_PHOTOS,
   },
   {
     key: 'about',
@@ -107,7 +115,14 @@ const CHECKS: { key: string; label: string; done: (u: ProfileCompletenessUser) =
 
 export function profileCompleteness(user: ProfileCompletenessUser | null | undefined) {
   if (!user) {
-    return { percent: 0, completed: 0, total: CHECKS.length, missing: CHECKS.map((c) => c.label), items: [] }
+    return {
+      percent: 0,
+      completed: 0,
+      total: CHECKS.length,
+      photoCount: 0,
+      missing: CHECKS.map((c) => c.label),
+      items: [],
+    }
   }
 
   const items = CHECKS.map((c) => ({ key: c.key, label: c.label, done: c.done(user) }))
@@ -116,7 +131,7 @@ export function profileCompleteness(user: ProfileCompletenessUser | null | undef
   const percent = Math.round((completed / total) * 100)
   const missing = items.filter((i) => !i.done).map((i) => i.label)
 
-  return { percent, completed, total, missing, items }
+  return { percent, completed, total, photoCount: photoCount(user), missing, items }
 }
 
 export function isProfileFullyComplete(user: ProfileCompletenessUser | null | undefined) {

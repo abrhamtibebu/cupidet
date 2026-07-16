@@ -97,7 +97,7 @@ export function MatchModal({ open, matchUser, myPhoto, myName = 'You', onChat, o
                 transition={{ ...softSpring, delay: 0.05 }}
               />
               <motion.div
-                className="absolute z-10 grid h-12 w-12 place-items-center rounded-full bg-lime text-ink shadow-[0_8px_28px_rgba(190,242,100,0.45)]"
+                className="absolute z-10 grid h-12 w-12 place-items-center rounded-full bg-heart text-white shadow-[0_8px_28px_rgba(255,77,109,0.45)]"
                 initial={{ scale: 0, rotate: -18, opacity: 0 }}
                 animate={{ scale: 1, rotate: 0, opacity: 1 }}
                 transition={{ ...snappy, delay: 0.12 }}
@@ -107,7 +107,7 @@ export function MatchModal({ open, matchUser, myPhoto, myName = 'You', onChat, o
             </div>
 
             <motion.p
-              className="text-[11px] font-semibold uppercase tracking-[0.28em] text-lime"
+              className="text-[11px] font-semibold uppercase tracking-[0.28em] text-heart"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.14, duration: 0.18 }}

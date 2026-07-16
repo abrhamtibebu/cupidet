@@ -5,7 +5,7 @@ type IconProps = SVGProps<SVGSVGElement> & {
   strokeWidth?: number
 }
 
-function base({ size = 20, className, strokeWidth = 1.75, ...rest }: IconProps) {
+function base({ size = 20, className, strokeWidth = 1.6, ...rest }: IconProps) {
   return {
     viewBox: '0 0 24 24',
     width: size,
@@ -21,22 +21,35 @@ function base({ size = 20, className, strokeWidth = 1.75, ...rest }: IconProps) 
   }
 }
 
-/** Explore / swipe deck — compass, not a heart */
+/** Soft classic heart path — used filled or stroked */
+const HEART_D =
+  'M12 20.4S3.8 15.2 3.2 9.6C2.7 6.4 5 4.2 7.9 4.2c1.8 0 3.2 1 4.1 2.4 0.9-1.4 2.3-2.4 4.1-2.4 2.9 0 5.2 2.2 4.7 5.4C20.2 15.2 12 20.4 12 20.4Z'
+
+/** Explore / swipe deck */
 export function IconDiscover(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="m15.5 8.5-2.1 5.9-5.9 2.1 2.1-5.9 5.9-2.1Z" />
-      <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="8.75" />
+      <path d="m15.35 8.55-2 5.65-5.65 2 2-5.65 5.65-2Z" />
+      <circle cx="12" cy="12" r="0.95" fill="currentColor" stroke="none" />
     </svg>
   )
 }
 
-/** People who liked you */
+/** People who liked you — elegant filled heart */
 export function IconLikes(props: IconProps) {
+  const { size = 22, className, ...rest } = props
   return (
-    <svg {...base(props)}>
-      <path d="M12 20.2S4.5 15.4 3.2 10.8C2.3 7.6 4.4 5 7.4 5c1.7 0 3.1.9 3.8 2.1C12.9 5.9 14.3 5 16 5c3 0 5.1 2.6 4.2 5.8C19.5 15.4 12 20.2 12 20.2Z" />
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      className={className}
+      fill="currentColor"
+      aria-hidden
+      {...rest}
+    >
+      <path d={HEART_D} />
     </svg>
   )
 }
@@ -45,8 +58,8 @@ export function IconLikes(props: IconProps) {
 export function IconMessages(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M7.5 19.5 4 21l1.2-3.5A8 8 0 1 1 12 20a7.7 7.7 0 0 1-4.5-.5Z" />
-      <path d="M8.5 11h7M8.5 14h4.5" />
+      <path d="M7.2 19.2 4.2 20.5l1-3.2A7.6 7.6 0 1 1 12 19.6a7.3 7.3 0 0 1-4.8-.4Z" />
+      <path d="M8.6 10.8h6.8M8.6 13.8h4.2" opacity="0.85" />
     </svg>
   )
 }
@@ -55,9 +68,8 @@ export function IconMessages(props: IconProps) {
 export function IconProfile(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <circle cx="12" cy="8" r="3.25" />
-      <path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" />
-      <circle cx="12" cy="12" r="9" opacity="0.35" />
+      <circle cx="12" cy="8.2" r="3.1" />
+      <path d="M5.8 19.2a6.2 6.2 0 0 1 12.4 0" />
     </svg>
   )
 }
@@ -66,12 +78,12 @@ export function IconProfile(props: IconProps) {
 export function IconFilters(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M4 7h16" />
+      <path d="M4.5 7h15" />
       <path d="M7 12h10" />
       <path d="M10 17h4" />
-      <circle cx="9" cy="7" r="1.6" fill="currentColor" stroke="none" />
-      <circle cx="14" cy="12" r="1.6" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="17" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="7" r="1.45" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="12" r="1.45" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="17" r="1.45" fill="currentColor" stroke="none" />
     </svg>
   )
 }
@@ -80,23 +92,22 @@ export function IconFilters(props: IconProps) {
 export function IconSettings(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 3.5v2.2M12 18.3v2.2M4.9 6.4l1.6 1.5M17.5 16.1l1.6 1.5M3.5 12h2.2M18.3 12h2.2M4.9 17.6l1.6-1.5M17.5 7.9l1.6-1.5" />
-      <circle cx="12" cy="12" r="8.5" opacity="0.35" />
+      <circle cx="12" cy="12" r="2.85" />
+      <path d="M12 4v1.9M12 18.1V20M5.4 6.5l1.35 1.35M17.25 16.15l1.35 1.35M4 12h1.9M18.1 12H20M5.4 17.5l1.35-1.35M17.25 7.85l1.35-1.35" />
     </svg>
   )
 }
 
-/** Pass / dismiss — Hinge-style X */
+/** Pass / dismiss */
 export function IconPass(props: IconProps) {
   return (
-    <svg {...base({ strokeWidth: 2.4, ...props })}>
-      <path d="M7.5 7.5 16.5 16.5M16.5 7.5 7.5 16.5" />
+    <svg {...base({ strokeWidth: 2.15, ...props })}>
+      <path d="M7.8 7.8 16.2 16.2M16.2 7.8 7.8 16.2" />
     </svg>
   )
 }
 
-/** Like action — Hinge-style heart */
+/** Like action — soft rose heart */
 export function IconLike(props: IconProps) {
   const { size = 22, className, ...rest } = props
   return (
@@ -109,12 +120,21 @@ export function IconLike(props: IconProps) {
       aria-hidden
       {...rest}
     >
-      <path d="M12 20.25c-.35 0-7.35-4.55-8.7-8.95C2.45 8.15 4.35 5.7 7.2 5.7c1.55 0 2.85.85 3.55 2.05.15.25.4.4.7.4s.55-.15.7-.4c.7-1.2 2-2.05 3.55-2.05 2.85 0 4.75 2.45 3.9 5.6-1.35 4.4-8.35 8.95-8.7 8.95Z" />
+      <path d={HEART_D} />
     </svg>
   )
 }
 
-/** Super like — Hinge-style star */
+/** Outlined heart (for light accents) */
+export function IconHeartOutline(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.7, ...props })}>
+      <path d={HEART_D} />
+    </svg>
+  )
+}
+
+/** Super like — refined star */
 export function IconSuperLike(props: IconProps) {
   const { size = 22, className, ...rest } = props
   return (
@@ -127,7 +147,7 @@ export function IconSuperLike(props: IconProps) {
       aria-hidden
       {...rest}
     >
-      <path d="m12 3.8 1.85 5.55h5.85l-4.75 3.4 1.85 5.55L12 15.15l-4.8 3.15 1.85-5.55-4.75-3.4h5.85L12 3.8Z" />
+      <path d="m12 3.6 2.05 5.9h6.2l-5 3.55 1.95 5.95L12 15.7l-5.2 3.3 1.95-5.95-5-3.55h6.2L12 3.6Z" />
     </svg>
   )
 }
@@ -135,9 +155,9 @@ export function IconSuperLike(props: IconProps) {
 /** Rewind last swipe */
 export function IconRewind(props: IconProps) {
   return (
-    <svg {...base({ strokeWidth: 2, ...props })}>
-      <path d="M5 12a7 7 0 1 0 2.1-5" />
-      <path d="M4.5 5v3.8H8.3" />
+    <svg {...base({ strokeWidth: 1.85, ...props })}>
+      <path d="M5.2 12a6.8 6.8 0 1 0 2-4.85" />
+      <path d="M4.8 5.2v3.5H8.3" />
     </svg>
   )
 }
@@ -146,8 +166,8 @@ export function IconRewind(props: IconProps) {
 export function IconReport(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M6 21V4.5" />
-      <path d="M6 5.2h9.2l-1.6 3.2 1.6 3.2H6" />
+      <path d="M6.2 20.5V4.8" />
+      <path d="M6.2 5.4h8.8l-1.45 2.9 1.45 2.9H6.2" />
     </svg>
   )
 }
@@ -155,8 +175,8 @@ export function IconReport(props: IconProps) {
 /** Back chevron */
 export function IconBack(props: IconProps) {
   return (
-    <svg {...base(props)}>
-      <path d="m15 5-7 7 7 7" />
+    <svg {...base({ strokeWidth: 1.9, ...props })}>
+      <path d="m14.8 5.5-7 6.5 7 6.5" />
     </svg>
   )
 }

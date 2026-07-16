@@ -17,10 +17,14 @@ const items: Item[] = [
   { to: '/profile', label: 'Profile', Icon: IconProfile },
 ]
 
-function Badge({ count }: { count: number }) {
+function Badge({ count, tone = 'lime' }: { count: number; tone?: 'lime' | 'heart' }) {
   if (count <= 0) return null
   return (
-    <span className="absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-lime px-1 text-[9px] font-bold leading-none text-ink">
+    <span
+      className={`absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-bold leading-none ${
+        tone === 'heart' ? 'bg-heart text-white' : 'bg-lime text-ink'
+      }`}
+    >
       {count > 99 ? '99+' : count}
     </span>
   )
@@ -45,13 +49,20 @@ export function BottomNav() {
               to={item.to}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold tracking-wide transition ${
-                  isActive ? 'text-lime' : 'text-white/40'
+                  isActive
+                    ? item.to === '/likes'
+                      ? 'text-heart'
+                      : 'text-lime'
+                    : 'text-white/40'
                 }`
               }
             >
               <span className="relative">
                 <item.Icon size={22} />
-                <Badge count={count} />
+                <Badge
+                  count={count}
+                  tone={item.badgeKey === 'newLikes' ? 'heart' : 'lime'}
+                />
               </span>
               <span>{item.label}</span>
             </NavLink>

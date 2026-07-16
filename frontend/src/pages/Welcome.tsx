@@ -47,7 +47,7 @@ function BrushHeart({ progress }: { progress: number }) {
         className="pointer-events-none absolute inset-0 opacity-[0.07]"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 20% 30%, #dffc01 0.6px, transparent 0.7px), radial-gradient(circle at 70% 60%, #fff 0.5px, transparent 0.6px)',
+            'radial-gradient(circle at 20% 30%, #ff4d6d 0.6px, transparent 0.7px), radial-gradient(circle at 70% 60%, #fff 0.5px, transparent 0.6px)',
           backgroundSize: '14px 14px, 18px 18px',
         }}
       />
@@ -74,7 +74,7 @@ function BrushHeart({ progress }: { progress: number }) {
         <motion.path
           d={HEART_PATH}
           fill="none"
-          stroke="#dffc01"
+          stroke="#ff4d6d"
           strokeWidth="6.5"
           strokeLinecap="round"
           strokeLinejoin="round"
