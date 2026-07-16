@@ -79,6 +79,15 @@ class ProfileController extends Controller
     public function hide(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        if (! in_array($user->status, ['active', 'hidden'], true)) {
+            return response()->json([
+                'message' => 'Account cannot change visibility while restricted.',
+                'code' => 'account_restricted',
+                'status' => $user->status,
+            ], 403);
+        }
+
         $user->update([
             'status' => $user->status === 'hidden' ? 'active' : 'hidden',
         ]);

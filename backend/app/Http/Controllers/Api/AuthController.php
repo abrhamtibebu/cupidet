@@ -52,7 +52,11 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
-        $user->forceFill(['last_active' => now()])->save();
+
+        if (! in_array($user->status, ['suspended', 'banned'], true)) {
+            $user->forceFill(['last_active' => now()])->save();
+        }
+
         $user->load(['profile', 'photos', 'interests', 'preferences', 'prompts']);
         $this->loadVerification($user);
 

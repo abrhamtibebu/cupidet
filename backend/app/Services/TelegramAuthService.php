@@ -39,7 +39,11 @@ class TelegramAuthService
 
         if (in_array($user->status, ['suspended', 'banned'], true)) {
             throw ValidationException::withMessages([
-                'account' => ['Your account is not allowed to access Cupid ET.'],
+                'account' => [
+                    $user->status === 'banned'
+                        ? 'Your account has been banned and can no longer use Mingle 251.'
+                        : 'Your account has been suspended. You cannot sign in until it is restored.',
+                ],
             ]);
         }
 
@@ -169,7 +173,11 @@ class TelegramAuthService
 
         if (in_array($user->status, ['suspended', 'banned'], true)) {
             throw ValidationException::withMessages([
-                'account' => ['Your account is not allowed to access Cupid ET.'],
+                'account' => [
+                    $user->status === 'banned'
+                        ? 'Your account has been banned and can no longer use Mingle 251.'
+                        : 'Your account has been suspended. You cannot sign in until it is restored.',
+                ],
             ]);
         }
 

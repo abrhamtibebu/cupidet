@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\SafetyController;
 use App\Http\Controllers\Api\VerificationController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureUserActive;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/telegram', [AuthController::class, 'telegram'])->middleware('throttle:20,1');
@@ -50,38 +51,40 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-    Route::get('/profile', [ProfileController::class, 'show']);
-    Route::post('/profile', [ProfileController::class, 'store']);
-    Route::put('/profile', [ProfileController::class, 'update']);
-    Route::post('/profile/hide', [ProfileController::class, 'hide']);
-    Route::delete('/account', [ProfileController::class, 'destroy']);
-    Route::get('/interests', [ProfileController::class, 'interests']);
-    Route::get('/prompts', [ProfileController::class, 'promptsCatalog']);
+    Route::middleware([EnsureUserActive::class])->group(function () {
+        Route::get('/profile', [ProfileController::class, 'show']);
+        Route::post('/profile', [ProfileController::class, 'store']);
+        Route::put('/profile', [ProfileController::class, 'update']);
+        Route::post('/profile/hide', [ProfileController::class, 'hide']);
+        Route::delete('/account', [ProfileController::class, 'destroy']);
+        Route::get('/interests', [ProfileController::class, 'interests']);
+        Route::get('/prompts', [ProfileController::class, 'promptsCatalog']);
 
-    Route::post('/photos', [PhotoController::class, 'store']);
-    Route::put('/photos/{photo}/primary', [PhotoController::class, 'setPrimary']);
-    Route::delete('/photos/{photo}', [PhotoController::class, 'destroy']);
-    Route::post('/verification/selfie', [VerificationController::class, 'store'])->middleware('throttle:5,60');
+        Route::post('/photos', [PhotoController::class, 'store']);
+        Route::put('/photos/{photo}/primary', [PhotoController::class, 'setPrimary']);
+        Route::delete('/photos/{photo}', [PhotoController::class, 'destroy']);
+        Route::post('/verification/selfie', [VerificationController::class, 'store'])->middleware('throttle:5,60');
 
-    Route::get('/discover', [DiscoverController::class, 'index']);
-    Route::post('/like', [ActionController::class, 'like'])->middleware('throttle:60,1');
-    Route::post('/pass', [ActionController::class, 'pass'])->middleware('throttle:60,1');
-    Route::post('/rewind', [ActionController::class, 'rewind'])->middleware('throttle:30,1');
-    Route::get('/matches', [ActionController::class, 'matches']);
-    Route::get('/likes/received', [ActionController::class, 'likesReceived']);
+        Route::get('/discover', [DiscoverController::class, 'index']);
+        Route::post('/like', [ActionController::class, 'like'])->middleware('throttle:60,1');
+        Route::post('/pass', [ActionController::class, 'pass'])->middleware('throttle:60,1');
+        Route::post('/rewind', [ActionController::class, 'rewind'])->middleware('throttle:30,1');
+        Route::get('/matches', [ActionController::class, 'matches']);
+        Route::get('/likes/received', [ActionController::class, 'likesReceived']);
 
-    Route::get('/conversations', [ChatController::class, 'conversations']);
-    Route::get('/badges', [ChatController::class, 'badges']);
-    Route::get('/matches/{matchId}/messages', [ChatController::class, 'index']);
-    Route::post('/matches/{matchId}/messages', [ChatController::class, 'store'])->middleware('throttle:60,1');
-    Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered'])->middleware('throttle:120,1');
-    Route::post('/matches/{matchId}/read', [ChatController::class, 'read'])->middleware('throttle:120,1');
-    Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing'])->middleware('throttle:60,1');
-    Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
+        Route::get('/conversations', [ChatController::class, 'conversations']);
+        Route::get('/badges', [ChatController::class, 'badges']);
+        Route::get('/matches/{matchId}/messages', [ChatController::class, 'index']);
+        Route::post('/matches/{matchId}/messages', [ChatController::class, 'store'])->middleware('throttle:60,1');
+        Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered'])->middleware('throttle:120,1');
+        Route::post('/matches/{matchId}/read', [ChatController::class, 'read'])->middleware('throttle:120,1');
+        Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing'])->middleware('throttle:60,1');
+        Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
 
-    Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
+        Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
 
-    Route::post('/report', [SafetyController::class, 'report'])->middleware('throttle:20,1');
-    Route::post('/block', [SafetyController::class, 'block']);
-    Route::delete('/block/{userId}', [SafetyController::class, 'unblock']);
+        Route::post('/report', [SafetyController::class, 'report'])->middleware('throttle:20,1');
+        Route::post('/block', [SafetyController::class, 'block']);
+        Route::delete('/block/{userId}', [SafetyController::class, 'unblock']);
+    });
 });

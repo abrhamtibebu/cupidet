@@ -10,6 +10,7 @@ import { WelcomeScreen } from './pages/Welcome'
 import { AuthPage } from './pages/Auth'
 import { OnboardingPage } from './pages/Onboarding'
 import { UnderageScreen } from './pages/Underage'
+import { AccountRestrictedScreen } from './pages/AccountRestricted'
 import { AdminGuard } from './pages/admin/AdminGuard'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminLoginPage } from './pages/admin/Login'
@@ -39,7 +40,7 @@ function RouteFallback() {
 }
 
 function Gate() {
-  const { loading, user, onboardingComplete } = useAuth()
+  const { loading, user, onboardingComplete, logout, accountRestriction, clearAccountRestriction } = useAuth()
   const [, setGateTick] = useState(0)
   const underageBlocked = sessionStorage.getItem('cupid_underage') === '1'
 
@@ -62,6 +63,23 @@ function Gate() {
           localStorage.removeItem(INTRO_KEY)
           setGateTick((n) => n + 1)
           window.location.reload()
+        }}
+      />
+    )
+  }
+
+  const restriction =
+    user?.status === 'banned' || user?.status === 'suspended'
+      ? user.status
+      : accountRestriction
+
+  if (restriction) {
+    return (
+      <AccountRestrictedScreen
+        status={restriction}
+        onSignOut={() => {
+          logout()
+          clearAccountRestriction()
         }}
       />
     )

@@ -12,6 +12,20 @@ export function setToken(token: string | null) {
   else localStorage.removeItem('cupid_token')
 }
 
+export class ApiError extends Error {
+  code?: string
+  accountStatus?: string
+  httpStatus: number
+
+  constructor(message: string, httpStatus: number, code?: string, accountStatus?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.httpStatus = httpStatus
+    this.code = code
+    this.accountStatus = accountStatus
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {})
   const token = getToken()
@@ -39,7 +53,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (!res.ok) {
       const firstError = data.errors ? Object.values(data.errors).flat()[0] : null
       const message = firstError || data.message || 'Request failed'
-      throw new Error(typeof message === 'string' ? message : 'Request failed')
+      const code = typeof data.code === 'string' ? data.code : undefined
+      const accountStatus = typeof data.status === 'string' ? data.status : undefined
+
+      if (code === 'account_restricted') {
+        window.dispatchEvent(
+          new CustomEvent('cupid:account-restricted', {
+            detail: { status: accountStatus, message },
+          }),
+        )
+      }
+
+      throw new ApiError(
+        typeof message === 'string' ? message : 'Request failed',
+        res.status,
+        code,
+        accountStatus,
+      )
     }
     return data as T
   } catch (err) {

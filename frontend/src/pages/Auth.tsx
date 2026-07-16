@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from '../lib/api'
-import { useAuth } from '../lib/auth'
+import { useAuth, restrictionFromMessage } from '../lib/auth'
 import {
   getTelegramInitData,
   getTelegramUserUnsafe,
@@ -15,7 +15,7 @@ import type { User } from '../types'
 type Mode = 'signin' | 'signup'
 
 export function AuthPage() {
-  const { setSession } = useAuth()
+  const { setSession, clearAccountRestriction, setAccountRestriction } = useAuth()
   const [mode, setMode] = useState<Mode>('signin')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -34,6 +34,7 @@ export function AuthPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    clearAccountRestriction()
     try {
       const res =
         mode === 'signin'
@@ -47,7 +48,10 @@ export function AuthPage() {
             })
       setSession(res.token, res.user as User, res.onboarding_complete)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
+      const message = err instanceof Error ? err.message : 'Authentication failed'
+      setError(message)
+      const restriction = restrictionFromMessage(message)
+      if (restriction) setAccountRestriction(restriction)
     } finally {
       setLoading(false)
     }
@@ -56,10 +60,10 @@ export function AuthPage() {
   const signInWithTelegram = async () => {
     setTgLoading(true)
     setError('')
+    clearAccountRestriction()
     try {
       const initData = getTelegramInitData()
       if (!initData) {
-        // Browser / no Mini App session — send them into Telegram
         openTelegramMiniApp()
         setError(`Open ${BRAND_NAME} from Telegram to finish signing in.`)
         return
@@ -70,7 +74,10 @@ export function AuthPage() {
       telegramHaptic('success')
     } catch (err) {
       telegramHaptic('error')
-      setError(err instanceof Error ? err.message : 'Telegram sign in failed')
+      const message = err instanceof Error ? err.message : 'Telegram sign in failed'
+      setError(message)
+      const restriction = restrictionFromMessage(message)
+      if (restriction) setAccountRestriction(restriction)
     } finally {
       setTgLoading(false)
     }

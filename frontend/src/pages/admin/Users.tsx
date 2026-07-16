@@ -48,6 +48,23 @@ export function AdminUsersPage() {
   }, [bucket, qParam, page])
 
   async function patchUser(id: number, body: { status?: string; verified?: boolean }) {
+    if (body.status === 'suspended') {
+      const ok = window.confirm(
+        'Suspend this account? They will see a suspension screen and cannot use the app until restored.',
+      )
+      if (!ok) return
+    }
+    if (body.status === 'banned') {
+      const ok = window.confirm(
+        'Ban this account permanently? They will see a banned screen and cannot sign in.',
+      )
+      if (!ok) return
+    }
+    if (body.status === 'active') {
+      const ok = window.confirm('Restore this account to active? They will regain full access.')
+      if (!ok) return
+    }
+
     setBusyId(id)
     setActionError('')
     try {
@@ -77,9 +94,9 @@ export function AdminUsersPage() {
 
   return (
     <div className="admin-page">
-      <PageHeader
+        <PageHeader
         title="Users"
-        subtitle="Search, filter, and moderate community accounts."
+        subtitle="Search, filter, and moderate community accounts. Suspend blocks access until restored; ban is permanent."
         actions={
           <>
             <form onSubmit={submitSearch} className="admin-filter-bar">
@@ -180,7 +197,7 @@ export function AdminUsersPage() {
                         >
                           Ban
                         </button>
-                        {row.status !== 'active' ? (
+                        {row.status === 'suspended' || row.status === 'banned' || row.status === 'hidden' ? (
                           <button
                             type="button"
                             className="admin-btn-ghost"

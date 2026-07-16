@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, setToken } from '../lib/api'
 import { disconnectEcho } from '../lib/echo'
-import { AuthContext } from '../lib/auth'
+import { AuthContext, restrictionFromMessage, type AccountRestriction } from '../lib/auth'
 import { getTelegramInitData, getTelegramUserUnsafe, isInsideTelegram } from '../lib/telegram'
 import type { User } from '../types'
 
@@ -9,11 +9,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [onboardingComplete, setOnboardingComplete] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [accountRestriction, setAccountRestriction] = useState<AccountRestriction | null>(null)
 
   const setSession = useCallback((token: string, nextUser: User, complete: boolean) => {
     setToken(token)
     setUser(nextUser)
     setOnboardingComplete(complete)
+    if (nextUser.status === 'banned' || nextUser.status === 'suspended') {
+      setAccountRestriction(nextUser.status)
+    } else {
+      setAccountRestriction(null)
+    }
+  }, [])
+
+  const clearAccountRestriction = useCallback(() => {
+    setAccountRestriction(null)
   }, [])
 
   const logout = useCallback(() => {
@@ -22,12 +32,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setUser(null)
     setOnboardingComplete(false)
+    setAccountRestriction(null)
   }, [])
 
   const refresh = useCallback(async () => {
     const res = await api.me()
-    setUser(res.user as User)
+    const nextUser = res.user as User
+    setUser(nextUser)
     setOnboardingComplete(res.onboarding_complete)
+    if (nextUser.status === 'banned' || nextUser.status === 'suspended') {
+      setAccountRestriction(nextUser.status)
+    } else {
+      setAccountRestriction(null)
+    }
   }, [])
 
   useEffect(() => {
@@ -40,7 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // Steps 8–9: signed initData → POST /api/auth/telegram → Sanctum token
         const initData = getTelegramInitData()
         if (initData) {
           const unsafe = getTelegramUserUnsafe()
@@ -55,10 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isInsideTelegram()) {
           console.warn('Inside Telegram but initData is empty — open via the bot menu button.')
         }
-        // Browser/local: wait for Sign in / Sign up screen (no auto-login)
       } catch (err) {
         console.error(err)
         setToken(null)
+        const restriction = restrictionFromMessage(err instanceof Error ? err.message : '')
+        if (!cancelled && restriction) setAccountRestriction(restriction)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -68,9 +85,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh, setSession])
 
+  useEffect(() => {
+    function syncRestricted() {
+      if (!localStorage.getItem('cupid_token')) return
+      void refresh().catch((err) => {
+        setToken(null)
+        setUser(null)
+        setOnboardingComplete(false)
+        const restriction = restrictionFromMessage(err instanceof Error ? err.message : '')
+        if (restriction) setAccountRestriction(restriction)
+      })
+    }
+
+    function onVisibility() {
+      if (document.visibilityState === 'visible') syncRestricted()
+    }
+
+    window.addEventListener('cupid:account-restricted', syncRestricted)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('cupid:account-restricted', syncRestricted)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [refresh])
+
   const value = useMemo(
-    () => ({ user, onboardingComplete, loading, refresh, setSession, logout }),
-    [user, onboardingComplete, loading, refresh, setSession, logout],
+    () => ({
+      user,
+      onboardingComplete,
+      loading,
+      accountRestriction,
+      refresh,
+      setSession,
+      setAccountRestriction,
+      clearAccountRestriction,
+      logout,
+    }),
+    [
+      user,
+      onboardingComplete,
+      loading,
+      accountRestriction,
+      refresh,
+      setSession,
+      clearAccountRestriction,
+      logout,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
