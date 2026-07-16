@@ -235,9 +235,9 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
         </div>
       </motion.article>
 
-      <div className="relative z-10 mt-5 flex items-center justify-center gap-4">
+      <div className="relative z-10 mt-5 flex items-center justify-center gap-3.5">
         <button type="button" disabled={busy} onClick={onReport} className="action-circle" aria-label="Report">
-          <IconReport size={22} className="text-lime" />
+          <IconReport size={20} className="text-lime" />
         </button>
         <button
           type="button"
@@ -246,7 +246,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
           className="action-circle action-circle-pass"
           aria-label="Pass"
         >
-          <IconPass size={22} />
+          <IconPass size={20} />
         </button>
         <button
           type="button"
@@ -255,7 +255,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
           className="action-circle disabled:cursor-not-allowed disabled:opacity-35"
           aria-label="Rewind"
         >
-          <IconRewind size={22} className="text-amber-300" />
+          <IconRewind size={20} className="text-amber-300" />
         </button>
         <button
           type="button"
@@ -264,7 +264,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
           className="action-circle action-circle-super"
           aria-label="Super like"
         >
-          <IconSuperLike size={22} />
+          <IconSuperLike size={20} />
         </button>
         <button
           type="button"
