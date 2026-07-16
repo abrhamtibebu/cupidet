@@ -187,19 +187,19 @@ export function DiscoverPage() {
 
   return (
     <div className="app-shell">
-      <header className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-full bg-panel p-1">
+      <header className="mb-4 flex items-end justify-between gap-3">
+        <div className="discover-tabs">
           {(
             [
               ['all', 'All'],
               ['online', 'Online'],
-              ['location', cityFilter ? cityFilter.split(' ')[0] : 'Location'],
+              ['location', 'Nearby'],
             ] as const
           ).map(([id, label]) => (
             <button
               key={id}
               type="button"
-              className={`nav-pill ${tab === id ? 'nav-pill-active' : ''}`}
+              className={`discover-tab${tab === id ? ' is-active' : ''}`}
               onClick={() => setTab(id)}
             >
               {label}
@@ -209,23 +209,23 @@ export function DiscoverPage() {
         <button
           type="button"
           onClick={() => setFiltersOpen(true)}
-          className="grid h-10 w-10 place-items-center rounded-full bg-panel text-lime"
+          className="discover-filter-btn"
           aria-label="Filters"
         >
-          <IconFilters size={20} />
+          <IconFilters size={18} />
         </button>
       </header>
 
       {error && <p className="mb-3 text-sm text-red-300">{error}</p>}
 
       {loading ? (
-        <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel text-muted">Loading profiles…</div>
+        <div className="discover-card grid place-items-center text-muted">Loading profiles…</div>
       ) : current ? (
         <div className="relative">
           {filtered[1] && (
             <motion.div
               key={`next-${filtered[1].id}`}
-              className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[64dvh] overflow-hidden rounded-[28px] will-change-transform [transform:translateZ(0)]"
+              className="discover-card pointer-events-none absolute inset-x-0 top-0 z-0 will-change-transform [transform:translateZ(0)]"
               initial={false}
               animate={{ scale: 0.965, opacity: 0.85, y: 12 }}
               transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
@@ -256,7 +256,7 @@ export function DiscoverPage() {
           </AnimatePresence>
         </div>
       ) : (
-        <div className="grid h-[64dvh] place-items-center rounded-[28px] bg-panel px-6 text-center">
+        <div className="discover-card grid place-items-center px-6 text-center">
           <div>
             <p className="text-xl font-bold">No more profiles</p>
             <p className="mt-2 text-sm text-muted">

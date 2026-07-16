@@ -23,7 +23,7 @@ function base({ size = 20, className, strokeWidth = 1.6, ...rest }: IconProps) {
 
 /** Soft classic heart path — used filled or stroked */
 const HEART_D =
-  'M12 21s-7.6-4.55-9.4-8.85C1.4 8.9 3.55 6.2 6.7 6.2c1.9 0 3.35 1.05 4.2 2.45.85-1.4 2.3-2.45 4.2-2.45 3.15 0 5.3 2.7 4.1 5.95C19.6 16.45 12 21 12 21Z'
+  'M12 20.5s-6.8-4.1-8.6-7.9C2.1 9.4 3.9 6.8 6.7 6.8c1.7 0 3 1 3.9 2.3.9-1.3 2.2-2.3 3.9-2.3 2.8 0 4.6 2.6 3.3 5.8C18.8 16.4 12 20.5 12 20.5Z'
 
 /** Explore / swipe deck — modern compass */
 export function IconDiscover(props: IconProps) {
@@ -74,16 +74,17 @@ export function IconProfile(props: IconProps) {
   )
 }
 
-/** Discovery filters — stacked sliders */
+/** Discovery filters — three sliders (matches design) */
 export function IconFilters(props: IconProps) {
   return (
-    <svg {...base({ strokeWidth: 1.7, ...props })}>
-      <path d="M4 7h16" />
-      <path d="M4 12h16" />
-      <path d="M4 17h16" />
-      <circle cx="8.5" cy="7" r="2" fill="currentColor" stroke="none" />
-      <circle cx="15.5" cy="12" r="2" fill="currentColor" stroke="none" />
-      <circle cx="10.5" cy="17" r="2" fill="currentColor" stroke="none" />
+    <svg {...base({ strokeWidth: 1.8, ...props })}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+      <circle cx="9" cy="7" r="2.15" fill="#0b0b0b" />
+      <circle cx="9" cy="7" r="2.15" />
+      <circle cx="15" cy="12" r="2.15" fill="#0b0b0b" />
+      <circle cx="15" cy="12" r="2.15" />
+      <circle cx="11" cy="17" r="2.15" fill="#0b0b0b" />
+      <circle cx="11" cy="17" r="2.15" />
     </svg>
   )
 }
@@ -98,16 +99,16 @@ export function IconSettings(props: IconProps) {
   )
 }
 
-/** Pass / dismiss — refined X */
+/** Pass / dismiss — thin X */
 export function IconPass(props: IconProps) {
   return (
-    <svg {...base({ strokeWidth: 2, ...props })}>
-      <path d="M7 7l10 10M17 7 7 17" />
+    <svg {...base({ strokeWidth: 2.1, ...props })}>
+      <path d="M7.5 7.5 16.5 16.5M16.5 7.5 7.5 16.5" />
     </svg>
   )
 }
 
-/** Like action — soft rose heart */
+/** Like action — filled heart */
 export function IconLike(props: IconProps) {
   const { size = 22, className, ...rest } = props
   return (
@@ -134,41 +135,40 @@ export function IconHeartOutline(props: IconProps) {
   )
 }
 
-/** Super like — refined 4-point sparkle */
+/** Super like — outlined star (matches design) */
 export function IconSuperLike(props: IconProps) {
-  const { size = 22, className, ...rest } = props
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      className={className}
-      fill="currentColor"
-      aria-hidden
-      {...rest}
-    >
-      <path d="M12 2.8c.35 3.4 1.85 5.3 4.9 6.2-3.05.9-4.55 2.8-4.9 6.2-.35-3.4-1.85-5.3-4.9-6.2 3.05-.9 4.55-2.8 4.9-6.2Z" />
-      <path d="M18.2 4.4c.18 1.4.8 2.2 2.1 2.6-1.3.4-1.92 1.2-2.1 2.6-.18-1.4-.8-2.2-2.1-2.6 1.3-.4 1.92-1.2 2.1-2.6Z" opacity="0.9" />
-    </svg>
-  )
-}
-
-/** Rewind last swipe — curved undo */
-export function IconRewind(props: IconProps) {
-  return (
-    <svg {...base({ strokeWidth: 1.75, ...props })}>
-      <path d="M8.2 8.2 5 11.4l3.2 3.2" />
-      <path d="M5 11.4h8.2a4.8 4.8 0 1 1 0 9.6H9.5" />
-    </svg>
-  )
-}
-
-/** Report — elegant flag */
-export function IconReport(props: IconProps) {
   return (
     <svg {...base({ strokeWidth: 1.7, ...props })}>
-      <path d="M6 21V4.5" />
-      <path d="M6 5.2h9.2a.8.8 0 0 1 .65 1.25L14.2 9.8l1.65 3.35a.8.8 0 0 1-.65 1.25H6" />
+      <path d="m12 3.6 2.2 5.55h5.85l-4.75 3.4 1.85 5.65L12 15.5l-5.15 2.7 1.85-5.65-4.75-3.4h5.85L12 3.6Z" />
+    </svg>
+  )
+}
+
+/** Rewind — counter-clockwise curved arrow */
+export function IconRewind(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.85, ...props })}>
+      <path d="M7.2 8.1 4.4 10.9 7.2 13.7" />
+      <path d="M4.4 10.9H13a4.6 4.6 0 1 1 0 9.2" />
+    </svg>
+  )
+}
+
+/** Report — simple flag */
+export function IconReport(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.75, ...props })}>
+      <path d="M6.5 20.5V4.5" />
+      <path d="M6.5 5h9.4l-1.7 3.2 1.7 3.2H6.5" />
+    </svg>
+  )
+}
+
+/** Verified check */
+export function IconVerified(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 2.2, ...props })}>
+      <path d="m7.2 12.2 3 3 6.6-6.6" />
     </svg>
   )
 }
@@ -178,6 +178,68 @@ export function IconBack(props: IconProps) {
   return (
     <svg {...base({ strokeWidth: 1.85, ...props })}>
       <path d="m15 5.5-7 6.5 7 6.5" />
+    </svg>
+  )
+}
+
+/** Attribute: height */
+export function IconHeight(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.7, ...props })}>
+      <path d="M8 5h8v14H8z" />
+      <path d="M8 8h3M8 12h4M8 16h3" />
+    </svg>
+  )
+}
+
+/** Attribute: languages */
+export function IconLanguages(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.7, ...props })}>
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M3.8 12h16.4M12 3.8c2.3 2.5 3.5 5.3 3.5 8.2S14.3 17.7 12 20.2M12 3.8C9.7 6.3 8.5 9.1 8.5 12s1.2 5.7 3.5 8.2" />
+    </svg>
+  )
+}
+
+/** Attribute: coffee */
+export function IconCoffee(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.7, ...props })}>
+      <path d="M5.5 9.5h10.5v5A3.8 3.8 0 0 1 12.2 18.3H9.3A3.8 3.8 0 0 1 5.5 14.5v-5Z" />
+      <path d="M16 11h1.4A2 2 0 0 1 19.4 13v0A2 2 0 0 1 17.4 15H16" />
+      <path d="M8.2 6.2c.35.55.35 1.15 0 1.7M11 6.2c.35.55.35 1.15 0 1.7" />
+    </svg>
+  )
+}
+
+/** Attribute: music / dancing */
+export function IconMusic(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.7, ...props })}>
+      <path d="M10.2 17.2V6.5l8.3-1.5v11" />
+      <circle cx="7.9" cy="17.2" r="2.3" />
+      <circle cx="16.2" cy="16" r="2.3" />
+    </svg>
+  )
+}
+
+/** Attribute: cooking */
+export function IconChef(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.7, ...props })}>
+      <path d="M8.2 10.2c0-2.2 1.5-3.7 3.8-3.7s3.8 1.5 3.8 3.7" />
+      <path d="M6.8 10.5h10.4v1.8a5.2 5.2 0 0 1-5.2 5.2h0a5.2 5.2 0 0 1-5.2-5.2v-1.8Z" />
+      <path d="M12 17.5V20" />
+    </svg>
+  )
+}
+
+/** Attribute: generic interest */
+export function IconSpark(props: IconProps) {
+  return (
+    <svg {...base({ strokeWidth: 1.7, ...props })}>
+      <path d="M12 4.5v3.2M12 16.3v3.2M4.5 12h3.2M16.3 12h3.2M7.1 7.1l2.2 2.2M14.7 14.7l2.2 2.2M16.9 7.1l-2.2 2.2M9.3 14.7l-2.2 2.2" />
     </svg>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   motion,
   useAnimation,
@@ -9,7 +9,20 @@ import {
 import type { DiscoverCard } from '../types'
 import { resolveMediaUrl } from '../lib/media'
 import { goalLabel } from '../lib/profileOptions'
-import { IconLike, IconPass, IconReport, IconRewind, IconSuperLike } from './Icons'
+import {
+  IconChef,
+  IconCoffee,
+  IconHeight,
+  IconLanguages,
+  IconLike,
+  IconMusic,
+  IconPass,
+  IconReport,
+  IconRewind,
+  IconSpark,
+  IconSuperLike,
+  IconVerified,
+} from './Icons'
 
 type ExitDir = 'like' | 'pass' | null
 
@@ -21,6 +34,14 @@ type Props = {
   onRewind?: () => void
   canRewind?: boolean
   onReport?: () => void
+}
+
+function interestIcon(label: string): ReactNode {
+  const key = label.toLowerCase()
+  if (key.includes('coffee') || key.includes('tea')) return <IconCoffee size={12} />
+  if (key.includes('danc') || key.includes('music')) return <IconMusic size={12} />
+  if (key.includes('cook') || key.includes('food') || key.includes('chef')) return <IconChef size={12} />
+  return <IconSpark size={12} />
 }
 
 export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRewind = false, onReport }: Props) {
@@ -43,7 +64,6 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
   const passBorderOpacity = useTransform(x, [-120, -16], [0.9, 0])
 
   useEffect(() => {
-    // Soft rise from the peeked next-card scale — no heavy remount bounce
     void controls.start({
       opacity: 1,
       scale: 1,
@@ -52,7 +72,6 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
     })
   }, [controls])
 
-  // Prefetch remaining photos
   useEffect(() => {
     photos.slice(1, 3).forEach((src) => {
       const img = new Image()
@@ -60,18 +79,20 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
     })
   }, [photos])
 
-  const goal = goalLabel(card.relationship_goal)
+  const goal = goalLabel(card.relationship_goal).toUpperCase()
+  const locationLabel = card.location?.trim() || 'Nearby'
+  const distanceLabel =
+    typeof card.distance_km === 'number'
+      ? card.distance_km < 1
+        ? 'Less than 1km away'
+        : `${Math.round(card.distance_km)}km away`
+      : null
+  const subtitle = [card.occupation, distanceLabel].filter(Boolean).join(' · ')
+  const languages = (card.languages || []).slice(0, 2).join(', ')
+  const interests = (card.interests || []).slice(0, 3)
 
   const nextPhoto = () => setPhotoIndex((i) => Math.min(photos.length - 1, i + 1))
   const prevPhoto = () => setPhotoIndex((i) => Math.max(0, i - 1))
-
-  const detailChips = [
-    card.occupation,
-    card.height_cm ? `${card.height_cm} cm` : null,
-    ...(card.languages?.slice(0, 2) || []),
-  ].filter(Boolean) as string[]
-
-  const promptPreview = card.prompts?.slice(0, 2) || []
 
   const flyOut = async (dir: 'like' | 'pass') => {
     if (busy) return
@@ -106,7 +127,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
   return (
     <div className="relative">
       <motion.article
-        className="relative z-10 h-[64dvh] w-full touch-none overflow-hidden rounded-[28px] bg-panel will-change-transform [transform:translateZ(0)]"
+        className="discover-card relative z-10 touch-none will-change-transform [transform:translateZ(0)]"
         style={{ x, rotate }}
         drag={busy ? false : 'x'}
         dragElastic={0.14}
@@ -124,7 +145,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
           draggable={false}
           decoding="async"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" />
 
         <motion.div
           aria-hidden
@@ -138,12 +159,12 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
         />
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-10 rounded-[28px] border-[3px] border-emerald-300 shadow-[inset_0_0_40px_rgba(52,211,153,0.22)]"
+          className="pointer-events-none absolute inset-0 z-10 rounded-[1.75rem] border-[3px] border-emerald-300 shadow-[inset_0_0_40px_rgba(52,211,153,0.22)]"
           style={{ opacity: forcedBadge === 'like' ? 1 : likeBorderOpacity }}
         />
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-10 rounded-[28px] border-[3px] border-rose-400 shadow-[inset_0_0_40px_rgba(244,63,94,0.2)]"
+          className="pointer-events-none absolute inset-0 z-10 rounded-[1.75rem] border-[3px] border-rose-400 shadow-[inset_0_0_40px_rgba(244,63,94,0.2)]"
           style={{ opacity: forcedBadge === 'pass' ? 1 : passBorderOpacity }}
         />
 
@@ -169,18 +190,6 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
           Pass
         </motion.div>
 
-        <div className="absolute left-4 top-4 z-20 flex items-center gap-2">
-          <span className="rounded-full bg-lime px-3 py-1 text-xs font-bold text-ink">{goal}</span>
-          {card.is_online && (
-            <span className="rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-lime backdrop-blur">
-              Online
-            </span>
-          )}
-        </div>
-        <span className="absolute right-4 top-4 z-20 rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
-          {typeof card.distance_km === 'number' ? `${card.distance_km} km` : card.location || 'Nearby'}
-        </span>
-
         {photos.length > 1 && (
           <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 gap-1">
             {photos.map((_, i) => (
@@ -192,90 +201,93 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 z-20 p-5">
+        <div className="absolute left-4 top-4 z-20">
+          <span className="rounded-full bg-lime px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-ink">
+            {goal}
+          </span>
+        </div>
+        <span className="absolute right-4 top-4 z-20 rounded-full bg-black/55 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
+          {locationLabel}
+        </span>
+
+        <div className="absolute inset-x-0 bottom-0 z-20 px-5 pb-[5.75rem] pt-24">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-3xl font-bold tracking-tight text-white">
+            <h2 className="discover-card-name">
               {card.name}
-              {card.age ? <span className="font-semibold text-white/85">, {card.age}</span> : null}
+              {card.age ? `, ${card.age}` : ''}
             </h2>
             {card.verified ? (
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-[#3b82f6] text-[10px] font-bold">✓</span>
+              <span className="grid h-[1.35rem] w-[1.35rem] place-items-center rounded-full bg-[#3b82f6] text-white shadow-[0_0_0_2px_rgba(59,130,246,0.25)]">
+                <IconVerified size={11} strokeWidth={2.6} />
+              </span>
             ) : null}
           </div>
-          {card.location && <p className="mt-1 text-sm text-white/70">{card.location}</p>}
-          {card.bio && <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-white/80">{card.bio}</p>}
-          {detailChips.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {detailChips.map((chip) => (
-                <span key={chip} className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/85">
-                  {chip}
-                </span>
-              ))}
-            </div>
-          )}
-          {promptPreview.length > 0 && (
-            <div className="mt-2 space-y-1.5">
-              {promptPreview.map((p) => (
-                <div key={p.prompt_key} className="rounded-2xl bg-black/35 px-3 py-2 backdrop-blur-sm">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-lime/90">
-                    {p.label || p.prompt_key}
-                  </p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-white/90">{p.answer}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {card.interests?.slice(0, 4).map((interest) => (
-              <span key={interest} className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/90">
+          {subtitle ? <p className="mt-1.5 text-sm font-medium text-white/78">{subtitle}</p> : null}
+
+          <div className="mt-3.5 flex flex-wrap gap-2">
+            {card.height_cm ? (
+              <span className="discover-attr">
+                <IconHeight size={12} />
+                {card.height_cm} cm
+              </span>
+            ) : null}
+            {languages ? (
+              <span className="discover-attr">
+                <IconLanguages size={12} />
+                {languages}
+              </span>
+            ) : null}
+            {interests.map((interest) => (
+              <span key={interest} className="discover-attr">
+                {interestIcon(interest)}
                 {interest}
               </span>
             ))}
           </div>
         </div>
-      </motion.article>
 
-      <div className="relative z-10 mt-5 flex items-center justify-center gap-3.5">
-        <button type="button" disabled={busy} onClick={onReport} className="action-circle" aria-label="Report">
-          <IconReport size={20} className="text-lime" />
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void flyOut('pass')}
-          className="action-circle action-circle-pass"
-          aria-label="Pass"
-        >
-          <IconPass size={20} />
-        </button>
-        <button
-          type="button"
-          onClick={onRewind}
-          disabled={!canRewind || busy}
-          className="action-circle disabled:cursor-not-allowed disabled:opacity-35"
-          aria-label="Rewind"
-        >
-          <IconRewind size={20} className="text-amber-300" />
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onSuperLike}
-          className="action-circle action-circle-super"
-          aria-label="Super like"
-        >
-          <IconSuperLike size={20} />
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void flyOut('like')}
-          className="action-circle action-circle-like"
-          aria-label="Like"
-        >
-          <IconLike size={22} />
-        </button>
-      </div>
+        <div className="discover-actions">
+          <button type="button" disabled={busy} onClick={onReport} className="discover-action" aria-label="Report">
+            <IconReport size={17} />
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void flyOut('pass')}
+            className="discover-action"
+            aria-label="Pass"
+          >
+            <IconPass size={17} />
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void flyOut('like')}
+            className="discover-action discover-action-like"
+            aria-label="Like"
+          >
+            <IconLike size={24} />
+          </button>
+          <button
+            type="button"
+            onClick={onRewind}
+            disabled={!canRewind || busy}
+            className="discover-action"
+            aria-label="Rewind"
+          >
+            <IconRewind size={17} />
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onSuperLike}
+            className="discover-action"
+            aria-label="Super like"
+          >
+            <IconSuperLike size={17} />
+          </button>
+        </div>
+      </motion.article>
     </div>
   )
 }

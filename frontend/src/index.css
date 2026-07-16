@@ -11,6 +11,7 @@
   --color-heart: #ff4d6d;
   --color-heart-deep: #e11d48;
   --font-sans: "DM Sans", "Segoe UI", sans-serif;
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
 }
 
 :root {
@@ -92,9 +93,9 @@ textarea {
   max-width: 430px;
   margin: 0 auto;
   padding:
-    max(40px, calc(var(--safe-top) + 35px))
+    max(56px, calc(var(--safe-top) + 38px))
     max(16px, var(--safe-right))
-    max(100px, calc(35px + env(safe-area-inset-bottom, 0px)))
+    max(100px, calc(24px + env(safe-area-inset-bottom, 0px)))
     max(16px, var(--safe-left));
 }
 
@@ -218,6 +219,137 @@ textarea {
 .nav-pill-active {
   background: #1e1e1e;
   color: #fff;
+}
+
+/* —— Discover page (design match) —— */
+.discover-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.15rem;
+}
+
+.discover-tab {
+  position: relative;
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0 0.55rem;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+}
+
+.discover-tab.is-active {
+  color: #fff;
+}
+
+.discover-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-lime);
+}
+
+.discover-filter-btn {
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #171717;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+}
+
+.discover-card {
+  position: relative;
+  height: min(72dvh, calc(100dvh - 11.5rem));
+  min-height: 28rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  background: #121212;
+}
+
+.discover-card-name {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 2.15rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.discover-attr {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(10px);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.discover-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.15rem;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  pointer-events: none;
+}
+
+.discover-actions > * {
+  pointer-events: auto;
+}
+
+.discover-action {
+  width: 3.15rem;
+  height: 3.15rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(18, 18, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.discover-action:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.discover-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.discover-action-like {
+  width: 4.35rem;
+  height: 4.35rem;
+  background: radial-gradient(circle at 35% 30%, #ff8aa3 0%, #ff4d6d 48%, #e11d48 100%);
+  border: 0;
+  color: #fff;
+  box-shadow:
+    0 0 0 6px rgba(255, 77, 109, 0.16),
+    0 12px 32px rgba(225, 29, 72, 0.45);
 }
 
 .typing-bubble {
