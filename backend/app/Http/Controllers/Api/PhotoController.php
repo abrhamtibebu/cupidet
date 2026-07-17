@@ -22,10 +22,26 @@ class PhotoController extends Controller
         $path = $file->store('photos/'.$user->id, $this->disk());
         $url = $this->urlFor($path);
 
-        $makePrimary = $request->boolean('is_primary') || ! $user->photos()->exists();
+        $makePrimary = $request->boolean('is_primary') || ! $user->photos()
+            ->whereNotNull('path')
+            ->where('path', 'not like', '%telegram_%')
+            ->exists();
 
         if ($makePrimary) {
             $user->photos()->update(['is_primary' => false]);
+            // Drop Telegram placeholders once the user uploads a real photo
+            $user->photos()
+                ->where(function ($q) {
+                    $q->where('path', 'like', '%telegram_%')
+                        ->orWhere(function ($inner) {
+                            $inner->whereNull('path')
+                                ->where(function ($urlQ) {
+                                    $urlQ->where('image_url', 'like', '%api.telegram.org%')
+                                        ->orWhere('image_url', 'like', '%t.me/%');
+                                });
+                        });
+                })
+                ->delete();
         }
 
         $photo = $user->photos()->create([
@@ -34,6 +50,10 @@ class PhotoController extends Controller
             'is_primary' => $makePrimary,
             'status' => config('cupid.auto_approve_photos') ? 'approved' : 'pending',
         ]);
+
+        if ($makePrimary) {
+            $user->forceFill(['photo_url' => $url])->save();
+        }
 
         return response()->json(['photo' => $photo], 201);
     }
@@ -44,6 +64,11 @@ class PhotoController extends Controller
 
         $request->user()->photos()->update(['is_primary' => false]);
         $photo->update(['is_primary' => true]);
+
+        $url = $photo->getAttributes()['image_url'] ?? $photo->image_url;
+        if (is_string($url) && $url !== '') {
+            $request->user()->forceFill(['photo_url' => $url])->save();
+        }
 
         return response()->json(['photo' => $photo->fresh()]);
     }
@@ -60,9 +85,21 @@ class PhotoController extends Controller
         $photo->delete();
 
         if ($wasPrimary) {
-            $next = $request->user()->photos()->latest()->first();
+            $next = $request->user()->photos()
+                ->whereNotNull('path')
+                ->where('path', 'not like', '%telegram_%')
+                ->latest()
+                ->first()
+                ?? $request->user()->photos()->latest()->first();
+
             if ($next) {
                 $next->update(['is_primary' => true]);
+                $url = $next->getAttributes()['image_url'] ?? $next->image_url;
+                if (is_string($url) && $url !== '') {
+                    $request->user()->forceFill(['photo_url' => $url])->save();
+                }
+            } else {
+                $request->user()->forceFill(['photo_url' => null])->save();
             }
         }
 

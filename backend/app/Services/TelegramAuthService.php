@@ -160,56 +160,57 @@ class TelegramAuthService
             ]);
         }
 
-        $user = User::query()->updateOrCreate(
-            ['telegram_id' => $telegramUser['id']],
-            [
-                'username' => $telegramUser['username'] ?? null,
-                'first_name' => $telegramUser['first_name'] ?? null,
-                'last_name' => $telegramUser['last_name'] ?? null,
-                'photo_url' => $telegramUser['photo_url'] ?? null,
-                'last_active' => now(),
-            ]
-        );
+        $telegramId = (int) $telegramUser['id'];
+        $user = User::query()->where('telegram_id', $telegramId)->first();
 
-        if (in_array($user->status, ['suspended', 'banned'], true)) {
-            throw ValidationException::withMessages([
-                'account' => [
-                    $user->status === 'banned'
-                        ? 'Your account has been banned and can no longer use Mingle 251.'
-                        : 'Your account has been suspended. You cannot sign in until it is restored.',
-                ],
-            ]);
+        if ($user) {
+            // Returning user: never overwrite profile data on login.
+            if (in_array($user->status, ['suspended', 'banned'], true)) {
+                throw ValidationException::withMessages([
+                    'account' => [
+                        $user->status === 'banned'
+                            ? 'Your account has been banned and can no longer use Mingle 251.'
+                            : 'Your account has been suspended. You cannot sign in until it is restored.',
+                    ],
+                ]);
+            }
+
+            $user->forceFill(['last_active' => now()])->save();
+
+            return $user->fresh(['profile', 'photos', 'interests', 'preferences']);
         }
 
-        $this->syncTelegramProfile($user, $telegramUser);
+        // First-time account only — seed from Telegram once.
+        $user = User::query()->create([
+            'telegram_id' => $telegramId,
+            'username' => $telegramUser['username'] ?? null,
+            'first_name' => $telegramUser['first_name'] ?? null,
+            'last_name' => $telegramUser['last_name'] ?? null,
+            'photo_url' => null,
+            'status' => 'active',
+            'last_active' => now(),
+        ]);
+
+        $this->seedNewTelegramAccount($user, $telegramUser);
 
         return $user->fresh(['profile', 'photos', 'interests', 'preferences']);
     }
 
     /**
-     * Pull display name + profile photo from Telegram into Cupid ET.
-     * Birthday is not available via Mini Apps — user confirms it in onboarding.
+     * One-time seed for a brand-new Telegram account (never run on returning logins).
+     */
+    public function seedNewTelegramAccount(User $user, array $telegramUser): void
+    {
+        $this->importTelegramPhoto($user, $telegramUser);
+    }
+
+    /**
+     * @deprecated Use seedNewTelegramAccount for new users only. Returning logins must not sync.
      */
     public function syncTelegramProfile(User $user, array $telegramUser): void
     {
-        $displayName = trim(
-            trim((string) ($telegramUser['first_name'] ?? $user->first_name ?? ''))
-            .' '
-            .trim((string) ($telegramUser['last_name'] ?? $user->last_name ?? ''))
-        );
-
-        if ($displayName === '') {
-            $displayName = $user->username ? '@'.$user->username : 'Cupid user';
-        }
-
-        // Keep profile name in sync when a profile already exists
-        if ($user->profile) {
-            $user->profile->update([
-                'name' => $displayName,
-            ]);
-        }
-
-        $this->importTelegramPhoto($user, $telegramUser);
+        // Intentionally no-op for safety if called from older code paths.
+        // Returning users keep whatever they saved in-app.
     }
 
     private function importTelegramPhoto(User $user, array $telegramUser): void
@@ -231,24 +232,34 @@ class TelegramAuthService
                 }
             });
 
-        // Keep real in-app uploads that are still on disk
-        $hasLocalUpload = $user->photos()
+        // Any in-app upload (even if the file is temporarily missing) means the user
+        // chose their own photo — never replace it with Telegram initials / CDN.
+        $hasUserUpload = $user->photos()
             ->whereNotNull('path')
             ->where('path', 'not like', '%telegram_%')
-            ->get()
-            ->contains(function ($photo) use ($disk) {
-                try {
-                    return Storage::disk($disk)->exists($photo->path);
-                } catch (\Throwable) {
-                    return false;
-                }
-            });
+            ->exists();
 
-        if ($hasLocalUpload) {
+        if ($hasUserUpload) {
+            // Remove leftover Telegram placeholders so they cannot become primary again
+            $user->photos()
+                ->where(function ($q) {
+                    $q->where('path', 'like', '%telegram_%')
+                        ->orWhere(function ($inner) {
+                            $inner->whereNull('path')
+                                ->where(function ($urlQ) {
+                                    $urlQ->where('image_url', 'like', '%api.telegram.org%')
+                                        ->orWhere('image_url', 'like', '%t.me/%');
+                                });
+                        });
+                })
+                ->delete();
+
+            $this->syncUserPhotoUrlFromPrimary($user);
+
             return;
         }
 
-        // Prefer Telegram CDN URL from Mini App (renders without our storage)
+        // Prefer Telegram CDN URL from Mini App (only when user has no uploads)
         $photoUrl = $telegramUser['photo_url'] ?? null;
         if (! is_string($photoUrl) || $photoUrl === '') {
             $photoUrl = is_string($user->photo_url) && str_starts_with($user->photo_url, 'http')
@@ -260,6 +271,7 @@ class TelegramAuthService
             $photoUrl = $this->fetchTelegramProfilePhotoUrl((int) ($telegramUser['id'] ?? $user->telegram_id));
         }
 
+        // No real Telegram photo (Telegram shows initials in the client UI only)
         if (! $photoUrl) {
             return;
         }
@@ -308,6 +320,38 @@ class TelegramAuthService
             'is_primary' => true,
             'status' => 'approved',
         ]);
+    }
+
+    private function syncUserPhotoUrlFromPrimary(User $user): void
+    {
+        $primary = $user->photos()
+            ->where('is_primary', true)
+            ->whereNotNull('path')
+            ->where('path', 'not like', '%telegram_%')
+            ->first()
+            ?? $user->photos()
+                ->whereNotNull('path')
+                ->where('path', 'not like', '%telegram_%')
+                ->latest('id')
+                ->first();
+
+        if (! $primary) {
+            return;
+        }
+
+        // Prefer a durable absolute URL stored on the photo row
+        $url = $primary->getAttributes()['image_url'] ?? null;
+        if (! is_string($url) || $url === '') {
+            $url = $primary->image_url;
+        }
+
+        if (is_string($url) && $url !== '') {
+            $user->forceFill(['photo_url' => $url])->save();
+            if (! $primary->is_primary) {
+                $user->photos()->update(['is_primary' => false]);
+                $primary->update(['is_primary' => true]);
+            }
+        }
     }
 
     private function fetchTelegramProfilePhotoUrl(int $telegramId): ?string
@@ -405,19 +449,24 @@ class TelegramAuthService
             ]);
         }
 
-        $user = User::query()->updateOrCreate(
-            ['telegram_id' => $telegramId],
-            [
-                'username' => $payload['username'] ?? 'demo_user',
-                'first_name' => $payload['first_name'] ?? 'Demo',
-                'last_name' => $payload['last_name'] ?? 'User',
-                'photo_url' => $payload['photo_url'] ?? null,
-                'last_active' => now(),
-                'status' => 'active',
-            ]
-        );
+        $user = User::query()->where('telegram_id', $telegramId)->first();
+        if ($user) {
+            $user->forceFill(['last_active' => now()])->save();
 
-        $this->syncTelegramProfile($user, [
+            return $user->fresh(['profile', 'photos', 'interests', 'preferences']);
+        }
+
+        $user = User::query()->create([
+            'telegram_id' => $telegramId,
+            'username' => $payload['username'] ?? 'demo_user',
+            'first_name' => $payload['first_name'] ?? 'Demo',
+            'last_name' => $payload['last_name'] ?? 'User',
+            'photo_url' => $payload['photo_url'] ?? null,
+            'last_active' => now(),
+            'status' => 'active',
+        ]);
+
+        $this->seedNewTelegramAccount($user, [
             'id' => $telegramId,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,

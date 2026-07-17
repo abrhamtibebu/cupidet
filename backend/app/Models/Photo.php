@@ -29,9 +29,20 @@ class Photo extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function isTelegramSynced(): bool
+    {
+        if (is_string($this->path) && str_contains($this->path, 'telegram_')) {
+            return true;
+        }
+
+        $url = (string) ($this->attributes['image_url'] ?? '');
+
+        return str_contains($url, 'api.telegram.org') || str_contains($url, 't.me/');
+    }
+
     /**
      * Rebuild public URLs from the current APP_URL / disk when the file exists.
-     * If the file was lost (ephemeral Render disk), fall back to the Telegram CDN URL on the user.
+     * User uploads must never fall back to Telegram initials/CDN URLs.
      */
     protected function imageUrl(): Attribute
     {
@@ -50,9 +61,17 @@ class Photo extends Model
                     // fall through
                 }
 
-                $fallback = $this->user?->photo_url;
-                if (is_string($fallback) && str_starts_with($fallback, 'http')) {
-                    return $fallback;
+                // Prefer the URL we stored at upload time
+                if (is_string($value) && $value !== '') {
+                    return $value;
+                }
+
+                // Only Telegram-synced rows may fall back to users.photo_url
+                if ($this->isTelegramSynced()) {
+                    $fallback = $this->user?->photo_url;
+                    if (is_string($fallback) && str_starts_with($fallback, 'http')) {
+                        return $fallback;
+                    }
                 }
             }
 
