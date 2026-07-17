@@ -38,5 +38,14 @@ php-fpm -D
 # Start Laravel Reverb in the background on port 8080
 php artisan reverb:start --host=127.0.0.1 --port=8080 &
 
+# Queue worker for Telegram notifications (auto-restarts if it dies)
+(
+  while true; do
+    php artisan queue:work --sleep=3 --tries=3 --timeout=60 --max-time=3600 || true
+    echo "queue:work exited; restarting in 5s" >&2
+    sleep 5
+  done
+) &
+
 # Start Nginx in the foreground to keep the container running
 exec nginx -g 'daemon off;'
