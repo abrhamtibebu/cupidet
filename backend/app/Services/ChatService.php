@@ -7,6 +7,9 @@ use App\Events\MessageStatusUpdated;
 use App\Events\UserTyping;
 use App\Jobs\SendMessageNotificationJob;
 use App\Models\Block;
+use App\Models\ChatSetting;
+use App\Models\Like;
+use App\Models\MatchDate;
 use App\Models\MatchModel;
 use App\Models\Message;
 use App\Models\User;
@@ -53,6 +56,16 @@ class ChatService
         return $items->map(function (array $item) use ($user, $lastByMatch, $unreadByMatch) {
             $last = $lastByMatch->get($item['id']);
             $otherId = (int) ($item['user']['id'] ?? 0);
+            $settings = ChatSetting::query()
+                ->where('user_id', $user->id)
+                ->where('match_id', $item['id'])
+                ->first();
+            $upcoming = MatchDate::query()
+                ->where('match_id', $item['id'])
+                ->whereIn('status', ['pending', 'accepted'])
+                ->where('scheduled_at', '>=', now()->subDay())
+                ->orderBy('scheduled_at')
+                ->first();
 
             return [
                 ...$item,
@@ -60,6 +73,8 @@ class ChatService
                 'unread_count' => (int) ($unreadByMatch[$item['id']] ?? 0),
                 'peer_typing' => $otherId > 0
                     && (bool) Cache::get($this->typingKey($item['id'], $otherId), false),
+                'muted' => (bool) ($settings?->muted),
+                'upcoming_date' => $upcoming ? $this->datePayload($upcoming) : null,
             ];
         });
     }
@@ -136,17 +151,213 @@ class ChatService
             'match_id' => $match->id,
             'sender_id' => $user->id,
             'body' => trim($body),
+            'type' => 'text',
         ]);
 
         $this->safeBroadcast(new MessageSent($message));
 
         try {
-            SendMessageNotificationJob::dispatch($message->id);
+            if (! $this->isMuted($other->id, $match->id)) {
+                SendMessageNotificationJob::dispatch($message->id);
+            }
         } catch (\Throwable) {
             // Queue unavailable — message is still saved.
         }
 
         return $this->payload($message, $user->id);
+    }
+
+    public function settings(User $user, int $matchId): array
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+        $row = ChatSetting::query()->firstOrCreate(
+            ['user_id' => $user->id, 'match_id' => $match->id],
+            ['muted' => false],
+        );
+
+        return [
+            'muted' => (bool) $row->muted,
+            'upcoming_date' => $this->currentDate($match->id),
+        ];
+    }
+
+    public function updateSettings(User $user, int $matchId, array $data): array
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+        $row = ChatSetting::query()->updateOrCreate(
+            ['user_id' => $user->id, 'match_id' => $match->id],
+            ['muted' => (bool) ($data['muted'] ?? false)],
+        );
+
+        return [
+            'muted' => (bool) $row->muted,
+            'upcoming_date' => $this->currentDate($match->id),
+        ];
+    }
+
+    public function proposeDate(User $user, int $matchId, array $data): array
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+        $other = $match->otherUser($user->id);
+
+        $date = MatchDate::query()->create([
+            'match_id' => $match->id,
+            'proposed_by' => $user->id,
+            'scheduled_at' => $data['scheduled_at'],
+            'place' => $data['place'] ?? null,
+            'note' => $data['note'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        $when = $date->scheduled_at->timezone(config('app.timezone'))->format('D, M j · g:i A');
+        $place = $date->place ? ' at '.$date->place : '';
+        $body = "📅 Date proposal: {$when}{$place}";
+        if ($date->note) {
+            $body .= "\n".$date->note;
+        }
+
+        $message = Message::query()->create([
+            'match_id' => $match->id,
+            'sender_id' => $user->id,
+            'body' => $body,
+            'type' => 'date_proposal',
+            'meta' => [
+                'date_id' => $date->id,
+                'scheduled_at' => $date->scheduled_at->toIso8601String(),
+                'place' => $date->place,
+                'note' => $date->note,
+                'status' => $date->status,
+            ],
+        ]);
+
+        $this->safeBroadcast(new MessageSent($message));
+
+        try {
+            if (! $this->isMuted($other->id, $match->id)) {
+                SendMessageNotificationJob::dispatch($message->id);
+            }
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        return [
+            'message' => $this->payload($message, $user->id),
+            'date' => $this->datePayload($date),
+        ];
+    }
+
+    public function respondDate(User $user, int $matchId, int $dateId, string $status): array
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+        $date = MatchDate::query()
+            ->where('match_id', $match->id)
+            ->whereKey($dateId)
+            ->firstOrFail();
+
+        if ((int) $date->proposed_by === (int) $user->id && $status !== 'cancelled') {
+            throw ValidationException::withMessages([
+                'status' => ['Only the other person can accept or decline.'],
+            ]);
+        }
+
+        if (! in_array($status, ['accepted', 'declined', 'cancelled'], true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Invalid status.'],
+            ]);
+        }
+
+        $date->update(['status' => $status]);
+
+        $label = match ($status) {
+            'accepted' => 'accepted the date 🎉',
+            'declined' => 'declined the date',
+            default => 'cancelled the date',
+        };
+
+        $message = Message::query()->create([
+            'match_id' => $match->id,
+            'sender_id' => $user->id,
+            'body' => $user->displayName().' '.$label,
+            'type' => 'date_update',
+            'meta' => [
+                'date_id' => $date->id,
+                'scheduled_at' => $date->scheduled_at->toIso8601String(),
+                'place' => $date->place,
+                'note' => $date->note,
+                'status' => $date->status,
+            ],
+        ]);
+
+        // Keep proposal cards in sync
+        Message::query()
+            ->where('match_id', $match->id)
+            ->where('type', 'date_proposal')
+            ->get()
+            ->filter(fn (Message $m) => (int) ($m->meta['date_id'] ?? 0) === (int) $date->id)
+            ->each(function (Message $m) use ($date) {
+                $meta = $m->meta ?? [];
+                $meta['status'] = $date->status;
+                $m->update(['meta' => $meta]);
+            });
+
+        $this->safeBroadcast(new MessageSent($message));
+
+        return [
+            'message' => $this->payload($message, $user->id),
+            'date' => $this->datePayload($date),
+        ];
+    }
+
+    public function unmatch(User $user, int $matchId): void
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+        $other = $match->otherUser($user->id);
+
+        Like::query()
+            ->where(function ($q) use ($user, $other) {
+                $q->where('sender_id', $user->id)->where('receiver_id', $other->id);
+            })
+            ->orWhere(function ($q) use ($user, $other) {
+                $q->where('sender_id', $other->id)->where('receiver_id', $user->id);
+            })
+            ->delete();
+
+        $match->delete();
+    }
+
+    private function isMuted(int $userId, int $matchId): bool
+    {
+        return ChatSetting::query()
+            ->where('user_id', $userId)
+            ->where('match_id', $matchId)
+            ->where('muted', true)
+            ->exists();
+    }
+
+    private function currentDate(int $matchId): ?array
+    {
+        $upcoming = MatchDate::query()
+            ->where('match_id', $matchId)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->where('scheduled_at', '>=', now()->subDay())
+            ->orderByRaw("CASE WHEN status = 'accepted' THEN 0 ELSE 1 END")
+            ->orderBy('scheduled_at')
+            ->first();
+
+        return $upcoming ? $this->datePayload($upcoming) : null;
+    }
+
+    private function datePayload(MatchDate $date): array
+    {
+        return [
+            'id' => $date->id,
+            'match_id' => $date->match_id,
+            'proposed_by' => $date->proposed_by,
+            'scheduled_at' => $date->scheduled_at?->toIso8601String(),
+            'place' => $date->place,
+            'note' => $date->note,
+            'status' => $date->status,
+        ];
     }
 
     public function markPresence(User $user, int $matchId): void
@@ -233,7 +444,7 @@ class ChatService
         // Cache state so clients without a live websocket can poll it.
         $key = $this->typingKey($match->id, $user->id);
         if ($typing) {
-            Cache::put($key, true, now()->addSeconds(6));
+            Cache::put($key, true, now()->addSeconds(8));
         } else {
             Cache::forget($key);
         }
@@ -274,6 +485,8 @@ class ChatService
             'id' => $message->id,
             'match_id' => $message->match_id,
             'body' => $message->body,
+            'type' => $message->type ?: 'text',
+            'meta' => $message->meta,
             'sender_id' => $message->sender_id,
             'is_mine' => $message->sender_id === $viewerId,
             'delivered_at' => $message->delivered_at,

@@ -13,6 +13,8 @@ class Message extends Model
         'match_id',
         'sender_id',
         'body',
+        'type',
+        'meta',
         'delivered_at',
         'read_at',
     ];
@@ -20,6 +22,7 @@ class Message extends Model
     protected function casts(): array
     {
         return [
+            'meta' => 'array',
             'delivered_at' => 'datetime',
             'read_at' => 'datetime',
         ];
@@ -27,7 +30,6 @@ class Message extends Model
 
     /**
      * Decrypt legacy Laravel Crypt payloads so older chats still display as plaintext.
-     * Leftover client E2E envelopes (enc1:) are shown as unavailable.
      */
     protected function body(): Attribute
     {
@@ -37,8 +39,9 @@ class Message extends Model
                     return $value;
                 }
 
+                // Leftover client E2E (should already be migrated, but keep safe).
                 if (str_starts_with($value, 'enc1:')) {
-                    return '[Message unavailable]';
+                    return 'This older encrypted message could not be recovered.';
                 }
 
                 $decoded = base64_decode($value, true);

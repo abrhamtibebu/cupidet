@@ -107,6 +107,14 @@ export type ChatMessage = {
   id: number
   match_id?: number
   body: string
+  type?: 'text' | 'date_proposal' | 'date_update' | string
+  meta?: {
+    date_id?: number
+    scheduled_at?: string
+    place?: string | null
+    note?: string | null
+    status?: string
+  } | null
   sender_id: number
   is_mine: boolean
   delivered_at?: string | null
@@ -114,6 +122,21 @@ export type ChatMessage = {
   created_at: string
   status?: 'sending' | 'sent' | 'delivered' | 'seen' | 'received' | 'failed'
   client_id?: string
+}
+
+export type MatchDate = {
+  id: number
+  match_id: number
+  proposed_by: number
+  scheduled_at: string
+  place?: string | null
+  note?: string | null
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled' | string
+}
+
+export type ChatSettings = {
+  muted: boolean
+  upcoming_date?: MatchDate | null
 }
 
 export type MatchItem = {
@@ -127,7 +150,10 @@ export type MatchItem = {
     sender_id: number
     created_at: string
     is_mine: boolean
+    type?: string
   } | null
   unread_count?: number
   peer_typing?: boolean
+  muted?: boolean
+  upcoming_date?: MatchDate | null
 }

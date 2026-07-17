@@ -160,7 +160,10 @@ export const api = {
   conversations: () => request<{ data: unknown[] }>('/conversations'),
   badges: () =>
     request<{ unread_messages: number; new_likes: number }>('/badges'),
-  getMessages: (matchId: number) => request<{ data: unknown[] }>(`/matches/${matchId}/messages`),
+  getMessages: (matchId: number) =>
+    request<{ data: unknown[]; settings?: { muted: boolean; upcoming_date?: unknown } }>(
+      `/matches/${matchId}/messages`,
+    ),
   sendMessage: (matchId: number, body: string) =>
     request<{ message: unknown }>(`/matches/${matchId}/messages`, {
       method: 'POST',
@@ -182,6 +185,28 @@ export const api = {
     }),
   presence: (matchId: number) =>
     request(`/matches/${matchId}/presence`, { method: 'POST', body: '{}' }),
+  chatSettings: (matchId: number) =>
+    request<{ settings: { muted: boolean; upcoming_date?: unknown } }>(`/matches/${matchId}/settings`),
+  updateChatSettings: (matchId: number, muted: boolean) =>
+    request<{ settings: { muted: boolean; upcoming_date?: unknown } }>(`/matches/${matchId}/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify({ muted }),
+    }),
+  proposeDate: (
+    matchId: number,
+    payload: { scheduled_at: string; place?: string; note?: string },
+  ) =>
+    request<{ message: unknown; date: unknown }>(`/matches/${matchId}/dates`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  respondDate: (matchId: number, dateId: number, status: 'accepted' | 'declined' | 'cancelled') =>
+    request<{ message: unknown; date: unknown }>(`/matches/${matchId}/dates/${dateId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+  unmatch: (matchId: number) =>
+    request<{ ok: boolean }>(`/matches/${matchId}`, { method: 'DELETE' }),
   updateNotifications: (prefs: {
     notify_matches?: boolean
     notify_likes?: boolean

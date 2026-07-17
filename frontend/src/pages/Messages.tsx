@@ -279,7 +279,9 @@ export function MessagesPage() {
                       </span>
                     </div>
                     <p className={`truncate text-sm ${isTyping ? 'font-medium text-lime' : 'text-muted'}`}>
-                      {isTyping ? 'typing…' : match.last_message?.body || 'It’s a match — say hi!'}
+                      {isTyping
+                        ? 'typing…'
+                        : `${match.muted ? 'Muted · ' : ''}${match.last_message?.body || 'It’s a match — say hi!'}`}
                     </p>
                   </div>
                   {!isTyping && (match.unread_count || 0) > 0 && (

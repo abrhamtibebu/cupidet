@@ -34,6 +34,8 @@ class MessageSent implements ShouldBroadcastNow
                 'id' => $this->message->id,
                 'match_id' => $this->message->match_id,
                 'body' => $this->message->body,
+                'type' => $this->message->type ?: 'text',
+                'meta' => $this->message->meta,
                 'sender_id' => $this->message->sender_id,
                 'delivered_at' => $this->message->delivered_at,
                 'read_at' => $this->message->read_at,

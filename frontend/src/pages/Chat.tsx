@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { bindConnectionState, getEcho } from '../lib/echo'
 import { useNavBadges } from '../lib/navBadges'
 import { pollMs } from '../lib/perf'
-import type { ChatMessage, MatchItem } from '../types'
+import type { ChatMessage, ChatSettings, MatchDate, MatchItem } from '../types'
 import { IconBack } from '../components/Icons'
 import { resolveMediaUrl } from '../lib/media'
+import { ReportSheet } from '../components/ReportSheet'
 
 function StatusTicks({ status }: { status?: ChatMessage['status'] }) {
   if (!status || status === 'received') return null
@@ -31,7 +32,6 @@ function StatusTicks({ status }: { status?: ChatMessage['status'] }) {
     )
   }
 
-  // sent = 1 tick · delivered = 2 gray · seen/opened = 2 blue
   const seen = status === 'seen'
   const delivered = status === 'delivered' || seen
   const color = seen ? '#1A73E8' : 'rgba(0,0,0,0.45)'
@@ -67,31 +67,25 @@ function TypingDots() {
   )
 }
 
-function ChatSkeleton() {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col-reverse overflow-hidden px-4" aria-hidden>
-      <div className="flex flex-col justify-end gap-3 py-4">
-        <div className="flex justify-start">
-          <div className="skeleton h-10 w-[58%] rounded-2xl rounded-bl-md" />
-        </div>
-        <div className="flex justify-end">
-          <div className="skeleton h-10 w-[46%] rounded-2xl rounded-br-md" />
-        </div>
-        <div className="flex justify-start">
-          <div className="skeleton h-16 w-[70%] rounded-2xl rounded-bl-md" />
-        </div>
-        <div className="flex justify-end">
-          <div className="skeleton h-10 w-[40%] rounded-2xl rounded-br-md" />
-        </div>
-        <div className="flex justify-start">
-          <div className="skeleton h-10 w-[52%] rounded-2xl rounded-bl-md" />
-        </div>
-        <div className="flex justify-end">
-          <div className="skeleton h-12 w-[62%] rounded-2xl rounded-br-md" />
-        </div>
-      </div>
-    </div>
-  )
+function dayLabel(iso: string) {
+  const d = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return 'Today'
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function formatDateWhen(iso?: string | null) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 function normalizeMessage(msg: ChatMessage, viewerId?: number): ChatMessage {
@@ -106,7 +100,12 @@ function normalizeMessage(msg: ChatMessage, viewerId?: number): ChatMessage {
   } else {
     status = 'received'
   }
-  return { ...msg, is_mine: mine, status }
+  return { ...msg, is_mine: mine, status, type: msg.type || 'text' }
+}
+
+function toLocalInputValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export function ChatPage() {
@@ -123,6 +122,18 @@ export function ChatPage() {
   const [error, setError] = useState('')
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [dateOpen, setDateOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [muted, setMuted] = useState(false)
+  const [upcomingDate, setUpcomingDate] = useState<MatchDate | null>(null)
+  const [busyAction, setBusyAction] = useState('')
+  const [dateForm, setDateForm] = useState(() => {
+    const d = new Date()
+    d.setHours(d.getHours() + 24)
+    d.setMinutes(0, 0, 0)
+    return { scheduled_at: toLocalInputValue(d), place: '', note: '' }
+  })
   const scrollerRef = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
   const typingPulse = useRef<number | null>(null)
@@ -131,6 +142,7 @@ export function ChatPage() {
   const userIdRef = useRef(user?.id)
   const inputFocused = useRef(false)
   const starterSent = useRef(false)
+  const bodyRef = useRef('')
   const initialMessage =
     typeof (location.state as { initialMessage?: string } | null)?.initialMessage === 'string'
       ? (location.state as { initialMessage: string }).initialMessage
@@ -139,6 +151,10 @@ export function ChatPage() {
   useEffect(() => {
     userIdRef.current = user?.id
   }, [user?.id])
+
+  useEffect(() => {
+    bodyRef.current = body
+  }, [body])
 
   const scrollToLatest = useCallback((smooth = false) => {
     const el = scrollerRef.current
@@ -150,7 +166,6 @@ export function ChatPage() {
     (msg: ChatMessage) => {
       const normalized = normalizeMessage(msg, userIdRef.current)
       setMessages((prev) => {
-        // Replace optimistic bubble when real message arrives
         const byClient =
           normalized.client_id != null
             ? prev.findIndex((m) => m.client_id === normalized.client_id)
@@ -212,10 +227,17 @@ export function ChatPage() {
     })
   }, [])
 
+  const applySettings = (settings?: ChatSettings | null) => {
+    if (!settings) return
+    setMuted(Boolean(settings.muted))
+    setUpcomingDate((settings.upcoming_date as MatchDate) || null)
+  }
+
   const loadMessages = useCallback(async () => {
     if (!id) return
     const res = await api.getMessages(id)
     mergeServerMessages(res.data as ChatMessage[])
+    applySettings(res.settings as ChatSettings | undefined)
   }, [id, mergeServerMessages])
 
   const stopTypingPulse = () => {
@@ -235,7 +257,6 @@ export function ChatPage() {
   const startTypingPulse = () => {
     emitTyping(true, true)
     stopTypingPulse()
-    // Keep “typing” alive on the other phone (iMessage-style) while focused with text
     typingPulse.current = window.setInterval(() => {
       if (inputFocused.current && bodyRef.current.trim()) {
         emitTyping(true, true)
@@ -243,30 +264,33 @@ export function ChatPage() {
     }, 2000)
   }
 
-  const bodyRef = useRef('')
+  // Always poll typing — websockets are unreliable on Render/Telegram WebView.
   useEffect(() => {
-    bodyRef.current = body
-  }, [body])
-
-  // Typing fallback: when the websocket is down, poll the cached typing state.
-  useEffect(() => {
-    if (!id || connected) return
+    if (!id) return
     let active = true
     const check = async () => {
       try {
         const res = await api.typingStatus(id)
-        if (active) setPeerTyping(res.typing)
+        if (!active) return
+        if (res.typing) {
+          setPeerTyping(true)
+          if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
+          typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 9000)
+        } else {
+          setPeerTyping(false)
+        }
       } catch {
         /* ignore */
       }
     }
     void check()
-    const timer = window.setInterval(() => void check(), pollMs(3000, 4000))
+    const timer = window.setInterval(() => void check(), pollMs(2000, 3000))
     return () => {
       active = false
       window.clearInterval(timer)
+      if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
     }
-  }, [id, connected])
+  }, [id])
 
   useEffect(() => {
     if (!id) return
@@ -293,17 +317,21 @@ export function ChatPage() {
     const boot = async () => {
       setLoading(true)
       try {
-        // Load thread first (fast path); peer header can fill in after
         const msgs = await api.getMessages(id)
         if (!active) return
         mergeServerMessages(msgs.data as ChatMessage[])
+        applySettings(msgs.settings as ChatSettings | undefined)
         setLoading(false)
         void refreshBadges()
 
         const convos = await api.conversations()
         if (!active) return
         const match = (convos.data as MatchItem[]).find((m) => m.id === id)
-        if (match) setPeer(match.user)
+        if (match) {
+          setPeer(match.user)
+          if (match.upcoming_date) setUpcomingDate(match.upcoming_date)
+          if (typeof match.muted === 'boolean') setMuted(match.muted)
+        }
       } catch (e) {
         if (active) {
           setError(e instanceof Error ? e.message : 'Failed to load chat')
@@ -330,7 +358,7 @@ export function ChatPage() {
         void loadMessages().catch(() => undefined)
       }, ms)
     }
-    startPolling(pollMs(5000, 15000))
+    startPolling(pollMs(4000, 8000))
 
     if (!echo) {
       return () => {
@@ -348,12 +376,14 @@ export function ChatPage() {
       upsertMessage(incoming)
       if (incoming.sender_id !== userIdRef.current) {
         setPeerTyping(false)
-        // In open chat: delivered then seen (opened) → blue double ticks for sender
         void api
           .markDelivered(id, [incoming.id])
           .then(() => api.markRead(id))
           .then(() => refreshBadges())
           .catch(() => undefined)
+      }
+      if (incoming.type === 'date_proposal' || incoming.type === 'date_update') {
+        void loadMessages().catch(() => undefined)
       }
     }
 
@@ -368,7 +398,6 @@ export function ChatPage() {
       if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
       if (payload.typing) {
         setPeerTyping(true)
-        // Safety only if they crash/leave without blur — refresh extends this
         typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 8000)
       } else {
         setPeerTyping(false)
@@ -382,14 +411,13 @@ export function ChatPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(channel as any).subscription?.bind?.('pusher:subscription_succeeded', () => {
       setConnected(true)
-      startPolling(pollMs(25000, 60000))
+      startPolling(pollMs(20000, 45000))
     })
 
     return () => {
       active = false
       unbindConn()
       if (pollTimer) window.clearInterval(pollTimer)
-      if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
       stopTypingPulse()
       emitTyping(false, true)
       channel.stopListening('.message.sent')
@@ -423,17 +451,6 @@ export function ChatPage() {
     }
   }
 
-  const onFocusInput = () => {
-    inputFocused.current = true
-    if (bodyRef.current.trim()) startTypingPulse()
-  }
-
-  const onBlurInput = () => {
-    inputFocused.current = false
-    stopTypingPulse()
-    emitTyping(false, true)
-  }
-
   const sendText = async (raw: string) => {
     if (!raw.trim() || !id || !user?.id) return
     const text = raw.trim()
@@ -442,6 +459,7 @@ export function ChatPage() {
       id: -Date.now(),
       match_id: id,
       body: text,
+      type: 'text',
       sender_id: user.id,
       is_mine: true,
       created_at: new Date().toISOString(),
@@ -459,11 +477,11 @@ export function ChatPage() {
 
     try {
       const res = await api.sendMessage(id, text)
-      const real = normalizeMessage(
-        { ...(res.message as ChatMessage), client_id: clientId, is_mine: true },
-        user.id,
-      )
-      upsertMessage(real)
+      upsertMessage({
+        ...(res.message as ChatMessage),
+        client_id: clientId,
+        is_mine: true,
+      })
     } catch (err) {
       setMessages((prev) =>
         prev.map((m) => (m.client_id === clientId ? { ...m, status: 'failed' } : m)),
@@ -471,11 +489,6 @@ export function ChatPage() {
       setBody(text)
       setError(err instanceof Error ? err.message : 'Send failed')
     }
-  }
-
-  const send = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await sendText(body)
   }
 
   useEffect(() => {
@@ -490,22 +503,103 @@ export function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, messages.length, initialMessage, id, user?.id])
 
+  const toggleMute = async () => {
+    if (!id) return
+    setBusyAction('mute')
+    try {
+      const next = !muted
+      const res = await api.updateChatSettings(id, next)
+      applySettings(res.settings as ChatSettings)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update settings')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  const submitDate = async () => {
+    if (!id || !dateForm.scheduled_at) return
+    setBusyAction('date')
+    setError('')
+    try {
+      const iso = new Date(dateForm.scheduled_at).toISOString()
+      const res = await api.proposeDate(id, {
+        scheduled_at: iso,
+        place: dateForm.place.trim() || undefined,
+        note: dateForm.note.trim() || undefined,
+      })
+      upsertMessage(res.message as ChatMessage)
+      setUpcomingDate(res.date as MatchDate)
+      setDateOpen(false)
+      setSettingsOpen(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not propose date')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  const respondToDate = async (dateId: number, status: 'accepted' | 'declined' | 'cancelled') => {
+    if (!id) return
+    setBusyAction(`date-${dateId}-${status}`)
+    try {
+      const res = await api.respondDate(id, dateId, status)
+      upsertMessage(res.message as ChatMessage)
+      setUpcomingDate(res.date as MatchDate)
+      await loadMessages()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update date')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  const doUnmatch = async () => {
+    if (!id || !window.confirm(`Unmatch with ${peer?.name || 'this person'}?`)) return
+    setBusyAction('unmatch')
+    try {
+      await api.unmatch(id)
+      navigate('/messages', { replace: true })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not unmatch')
+      setBusyAction('')
+    }
+  }
+
+  const doBlock = async () => {
+    if (!peer?.id || !window.confirm(`Block ${peer.name}? You will unmatch and stop seeing each other.`)) return
+    setBusyAction('block')
+    try {
+      await api.block(peer.id)
+      navigate('/messages', { replace: true })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not block')
+      setBusyAction('')
+    }
+  }
+
+  const threaded = useMemo(() => {
+    const rows: { kind: 'day' | 'msg'; label?: string; msg?: ChatMessage }[] = []
+    let lastDay = ''
+    for (const msg of messages) {
+      const day = dayLabel(msg.created_at)
+      if (day !== lastDay) {
+        rows.push({ kind: 'day', label: day })
+        lastDay = day
+      }
+      rows.push({ kind: 'msg', msg })
+    }
+    return rows
+  }, [messages])
+
   return (
     <div className="mx-auto flex h-[100dvh] max-w-[430px] flex-col overflow-hidden bg-black">
-      <header className="flex shrink-0 items-center gap-3 border-b border-white/5 px-4 py-3 pt-[max(0.75rem,var(--app-top-spacing))]">
+      <header className="flex shrink-0 items-center gap-2 border-b border-white/5 px-3 py-3 pt-[max(0.75rem,var(--app-top-spacing))]">
         <button type="button" className="grid h-9 w-9 place-items-center text-white/70" onClick={() => navigate('/messages')} aria-label="Back">
           <IconBack size={20} />
         </button>
-        {loading && !peer ? (
-          <div className="flex min-w-0 flex-1 items-center gap-3" aria-hidden>
-            <div className="skeleton h-10 w-10 rounded-full" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="skeleton h-3 w-28 rounded-full" />
-              <div className="skeleton h-2.5 w-16 rounded-full" />
-            </div>
-          </div>
-        ) : peer ? (
-          <Link to="/messages" className="flex min-w-0 flex-1 items-center gap-3">
+        {peer ? (
+          <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setSettingsOpen(true)}>
             <img
               src={resolveMediaUrl(peer.photo_url, 'https://i.pravatar.cc/80')}
               alt={peer.name}
@@ -513,7 +607,10 @@ export function ChatPage() {
               decoding="async"
             />
             <div className="min-w-0">
-              <p className="truncate font-semibold">{peer.name}</p>
+              <p className="truncate font-semibold">
+                {peer.name}
+                {muted ? <span className="ml-1 text-[10px] font-medium text-white/40">Muted</span> : null}
+              </p>
               <p className="text-xs text-muted">
                 {peerTyping ? (
                   <span className="text-lime">typing…</span>
@@ -524,53 +621,169 @@ export function ChatPage() {
                 )}
               </p>
             </div>
-          </Link>
-        ) : null}
+          </button>
+        ) : (
+          <div className="flex-1" />
+        )}
+        <button
+          type="button"
+          className="grid h-9 w-9 place-items-center rounded-full bg-panel text-lg text-white/80"
+          onClick={() => setDateOpen(true)}
+          aria-label="Set a date"
+          title="Set a date"
+        >
+          📅
+        </button>
+        <button
+          type="button"
+          className="grid h-9 w-9 place-items-center rounded-full bg-panel text-white/80"
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Chat settings"
+        >
+          ⋮
+        </button>
       </header>
 
-      {loading ? (
-        <ChatSkeleton />
-      ) : (
-        <div
-          ref={scrollerRef}
-          onScroll={onScroll}
-          className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-4"
-        >
-          <div className="flex flex-col justify-end gap-2 py-4">
-            {error && <p className="text-center text-sm text-red-300">{error}</p>}
-            {messages.length === 0 && !error && (
-              <div className="rounded-2xl bg-panel p-4 text-center text-sm text-muted">
-                You matched with {peer?.name || 'them'}. Say hello 👋
+      {upcomingDate && (upcomingDate.status === 'pending' || upcomingDate.status === 'accepted') ? (
+        <div className="mx-3 mt-2 shrink-0 rounded-2xl border border-lime/25 bg-lime/10 px-3 py-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-lime">
+                {upcomingDate.status === 'accepted' ? 'Date planned' : 'Date proposed'}
+              </p>
+              <p className="mt-0.5 text-sm font-semibold text-white">{formatDateWhen(upcomingDate.scheduled_at)}</p>
+              {upcomingDate.place ? <p className="text-xs text-white/65">{upcomingDate.place}</p> : null}
+            </div>
+            {upcomingDate.status === 'pending' && upcomingDate.proposed_by !== user?.id ? (
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  className="rounded-full bg-lime px-2.5 py-1 text-[11px] font-bold text-ink"
+                  disabled={!!busyAction}
+                  onClick={() => void respondToDate(upcomingDate.id, 'accepted')}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white"
+                  disabled={!!busyAction}
+                  onClick={() => void respondToDate(upcomingDate.id, 'declined')}
+                >
+                  Decline
+                </button>
               </div>
-            )}
-            {messages.map((msg) => {
-              const mine = msg.is_mine || msg.sender_id === user?.id
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        ref={scrollerRef}
+        onScroll={onScroll}
+        className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-4"
+      >
+        <div className="flex flex-col justify-end gap-2 py-4">
+          {error ? <p className="text-center text-sm text-red-300">{error}</p> : null}
+          {!loading && messages.length === 0 && !error ? (
+            <div className="rounded-2xl bg-panel p-4 text-center text-sm text-muted">
+              You matched with {peer?.name || 'them'}. Say hello 👋
+              <button
+                type="button"
+                className="mt-3 block w-full rounded-full border border-white/10 py-2 text-xs font-semibold text-lime"
+                onClick={() => setDateOpen(true)}
+              >
+                Or set a date
+              </button>
+            </div>
+          ) : null}
+
+          {threaded.map((row, i) => {
+            if (row.kind === 'day') {
               return (
-                <div key={msg.client_id || msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                      mine
-                        ? `rounded-br-md bg-lime text-ink ${msg.status === 'sending' ? 'opacity-80' : ''}`
-                        : 'rounded-bl-md bg-panel-2 text-white'
-                    }`}
-                  >
-                    <span>{msg.body}</span>
-                    {mine && <StatusTicks status={msg.status} />}
+                <div key={`day-${row.label}-${i}`} className="my-1 flex justify-center">
+                  <span className="rounded-full bg-white/8 px-3 py-1 text-[11px] font-semibold text-white/50">
+                    {row.label}
+                  </span>
+                </div>
+              )
+            }
+            const msg = row.msg!
+            const mine = msg.is_mine || msg.sender_id === user?.id
+            if (msg.type === 'date_proposal') {
+              const st = msg.meta?.status || 'pending'
+              return (
+                <div key={msg.client_id || msg.id} className="flex justify-center px-2">
+                  <div className="w-full max-w-[92%] rounded-2xl border border-white/10 bg-panel-2 p-3.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-lime">Date proposal</p>
+                    <p className="mt-1 text-sm font-semibold">{formatDateWhen(msg.meta?.scheduled_at)}</p>
+                    {msg.meta?.place ? <p className="mt-0.5 text-xs text-muted">{msg.meta.place}</p> : null}
+                    {msg.meta?.note ? <p className="mt-2 text-sm text-white/80">{msg.meta.note}</p> : null}
+                    <p className="mt-2 text-[11px] capitalize text-white/45">{st}</p>
+                    {!mine && st === 'pending' && msg.meta?.date_id ? (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          className="btn-lime flex-1 py-2 text-xs"
+                          disabled={!!busyAction}
+                          onClick={() => void respondToDate(msg.meta!.date_id!, 'accepted')}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          className="flex-1 rounded-full bg-white/10 py-2 text-xs font-bold"
+                          disabled={!!busyAction}
+                          onClick={() => void respondToDate(msg.meta!.date_id!, 'declined')}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )
-            })}
-            {peerTyping && (
-              <div className="flex justify-start">
-                <TypingDots />
+            }
+            if (msg.type === 'date_update') {
+              return (
+                <div key={msg.client_id || msg.id} className="flex justify-center">
+                  <span className="rounded-full bg-white/8 px-3 py-1.5 text-center text-[12px] text-white/60">
+                    {msg.body}
+                  </span>
+                </div>
+              )
+            }
+            return (
+              <div key={msg.client_id || msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                    mine
+                      ? `rounded-br-md bg-lime text-ink ${msg.status === 'sending' ? 'opacity-80' : ''}`
+                      : 'rounded-bl-md bg-panel-2 text-white'
+                  }`}
+                >
+                  <span className="whitespace-pre-wrap break-words">{msg.body}</span>
+                  <span className={`mt-1 flex items-center justify-end text-[10px] ${mine ? 'text-ink/45' : 'text-white/35'}`}>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {mine ? <StatusTicks status={msg.status} /> : null}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+            )
+          })}
+          {peerTyping ? (
+            <div className="flex justify-start">
+              <TypingDots />
+            </div>
+          ) : null}
         </div>
-      )}
+      </div>
 
       <form
-        onSubmit={(e) => void send(e)}
+        onSubmit={(e) => {
+          e.preventDefault()
+          void sendText(body)
+        }}
         className="flex shrink-0 items-center gap-2 border-t border-white/5 px-3 py-3 pb-[max(12px,var(--safe-bottom))]"
       >
         <input
@@ -579,13 +792,124 @@ export function ChatPage() {
           value={body}
           disabled={loading}
           onChange={(e) => onBodyChange(e.target.value)}
-          onFocus={onFocusInput}
-          onBlur={onBlurInput}
+          onFocus={() => {
+            inputFocused.current = true
+            if (bodyRef.current.trim()) startTypingPulse()
+          }}
+          onBlur={() => {
+            inputFocused.current = false
+            stopTypingPulse()
+            emitTyping(false, true)
+          }}
         />
         <button type="submit" disabled={loading || !body.trim()} className="btn-lime px-4 py-3">
           Send
         </button>
       </form>
+
+      {settingsOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setSettingsOpen(false)}>
+          <div
+            className="w-full max-w-[430px] rounded-t-3xl bg-[#141414] p-5 pb-[max(1.25rem,var(--safe-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Chat settings</h2>
+              <button type="button" className="text-sm text-muted" onClick={() => setSettingsOpen(false)}>
+                Close
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button type="button" className="flex w-full items-center justify-between rounded-2xl bg-panel px-4 py-3.5 text-left" onClick={() => void toggleMute()} disabled={busyAction === 'mute'}>
+                <span className="font-semibold">{muted ? 'Unmute chat' : 'Mute notifications'}</span>
+                <span className="text-xs text-muted">{muted ? 'On' : 'Off'}</span>
+              </button>
+              <button type="button" className="w-full rounded-2xl bg-panel px-4 py-3.5 text-left font-semibold" onClick={() => { setSettingsOpen(false); setDateOpen(true) }}>
+                Set a date
+              </button>
+              <button type="button" className="w-full rounded-2xl bg-panel px-4 py-3.5 text-left font-semibold" onClick={() => { setSettingsOpen(false); setReportOpen(true) }}>
+                Report
+              </button>
+              <button type="button" className="w-full rounded-2xl bg-panel px-4 py-3.5 text-left font-semibold text-amber-300" onClick={() => void doUnmatch()} disabled={!!busyAction}>
+                Unmatch
+              </button>
+              <button type="button" className="w-full rounded-2xl bg-panel px-4 py-3.5 text-left font-semibold text-red-300" onClick={() => void doBlock()} disabled={!!busyAction}>
+                Block
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {dateOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setDateOpen(false)}>
+          <div
+            className="w-full max-w-[430px] rounded-t-3xl bg-[#141414] p-5 pb-[max(1.25rem,var(--safe-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Set a date</h2>
+              <button type="button" className="text-sm text-muted" onClick={() => setDateOpen(false)}>
+                Close
+              </button>
+            </div>
+            <label className="mb-3 block text-xs font-semibold text-muted">
+              When
+              <input
+                type="datetime-local"
+                className="field mt-1.5"
+                value={dateForm.scheduled_at}
+                onChange={(e) => setDateForm((f) => ({ ...f, scheduled_at: e.target.value }))}
+              />
+            </label>
+            <label className="mb-3 block text-xs font-semibold text-muted">
+              Place (optional)
+              <input
+                className="field mt-1.5"
+                placeholder="Coffee shop, park…"
+                value={dateForm.place}
+                onChange={(e) => setDateForm((f) => ({ ...f, place: e.target.value }))}
+              />
+            </label>
+            <label className="mb-4 block text-xs font-semibold text-muted">
+              Note (optional)
+              <input
+                className="field mt-1.5"
+                placeholder="Looking forward to it!"
+                value={dateForm.note}
+                onChange={(e) => setDateForm((f) => ({ ...f, note: e.target.value }))}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn-lime w-full justify-center py-3.5"
+              disabled={busyAction === 'date' || !dateForm.scheduled_at}
+              onClick={() => void submitDate()}
+            >
+              {busyAction === 'date' ? 'Sending…' : 'Send date proposal'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <ReportSheet
+        open={reportOpen}
+        name={peer?.name}
+        onClose={() => setReportOpen(false)}
+        onSubmit={(reason, block) => {
+          if (!peer?.id) return
+          void (async () => {
+            try {
+              await api.report(peer.id, reason)
+              if (block) await api.block(peer.id)
+              setReportOpen(false)
+              if (block) navigate('/messages', { replace: true })
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Report failed')
+            }
+          })()
+        }}
+      />
     </div>
   )
 }

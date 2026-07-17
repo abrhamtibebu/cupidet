@@ -91,6 +91,11 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing'])->middleware('throttle:60,1');
         Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus'])->middleware('throttle:120,1');
         Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
+        Route::get('/matches/{matchId}/settings', [ChatController::class, 'settings']);
+        Route::patch('/matches/{matchId}/settings', [ChatController::class, 'updateSettings']);
+        Route::post('/matches/{matchId}/dates', [ChatController::class, 'proposeDate'])->middleware('throttle:20,1');
+        Route::post('/matches/{matchId}/dates/{dateId}/respond', [ChatController::class, 'respondDate'])->middleware('throttle:30,1');
+        Route::delete('/matches/{matchId}', [ChatController::class, 'unmatch'])->middleware('throttle:10,1');
 
         Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
         Route::post('/broadcast-opens', [\App\Http\Controllers\Api\BroadcastOpenController::class, 'store'])->middleware('throttle:30,1');

@@ -25,6 +25,7 @@ class ChatController extends Controller
     {
         return response()->json([
             'data' => $chat->messages($request->user(), $matchId),
+            'settings' => $chat->settings($request->user(), $matchId),
         ]);
     }
 
@@ -79,6 +80,55 @@ class ChatController extends Controller
     public function presence(Request $request, int $matchId, ChatService $chat): JsonResponse
     {
         $chat->markPresence($request->user(), $matchId);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function settings(Request $request, int $matchId, ChatService $chat): JsonResponse
+    {
+        return response()->json([
+            'settings' => $chat->settings($request->user(), $matchId),
+        ]);
+    }
+
+    public function updateSettings(Request $request, int $matchId, ChatService $chat): JsonResponse
+    {
+        $data = $request->validate([
+            'muted' => ['required', 'boolean'],
+        ]);
+
+        return response()->json([
+            'settings' => $chat->updateSettings($request->user(), $matchId, $data),
+        ]);
+    }
+
+    public function proposeDate(Request $request, int $matchId, ChatService $chat): JsonResponse
+    {
+        $data = $request->validate([
+            'scheduled_at' => ['required', 'date', 'after:now'],
+            'place' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $result = $chat->proposeDate($request->user(), $matchId, $data);
+
+        return response()->json($result, 201);
+    }
+
+    public function respondDate(Request $request, int $matchId, int $dateId, ChatService $chat): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:accepted,declined,cancelled'],
+        ]);
+
+        return response()->json(
+            $chat->respondDate($request->user(), $matchId, $dateId, $data['status'])
+        );
+    }
+
+    public function unmatch(Request $request, int $matchId, ChatService $chat): JsonResponse
+    {
+        $chat->unmatch($request->user(), $matchId);
 
         return response()->json(['ok' => true]);
     }
