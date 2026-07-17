@@ -26,6 +26,8 @@ type LegacyWebApp = {
   themeParams?: Record<string, string>
   ready?: () => void
   expand?: () => void
+  requestFullscreen?: () => void
+  exitFullscreen?: () => void
   isFullscreen?: boolean
   isExpanded?: boolean
   safeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
@@ -103,8 +105,11 @@ export function initTelegram(): boolean {
         void viewport.mount().then(() => {
           if (viewport.expand.isAvailable()) viewport.expand()
           if (viewport.bindCssVars.isAvailable()) viewport.bindCssVars()
+          void requestTelegramFullscreen()
           syncTelegramSafeAreas()
         })
+      } else {
+        void requestTelegramFullscreen()
       }
 
       if (miniApp.ready.isAvailable()) miniApp.ready()
@@ -121,9 +126,12 @@ export function initTelegram(): boolean {
       if (miniApp.setBottomBarColor.isAvailable()) miniApp.setBottomBarColor('#000000')
 
       console.log('Telegram Mini Apps SDK initialized')
+    } else {
+      void requestTelegramFullscreen()
     }
   } catch (err) {
     console.warn('Telegram SDK init skipped:', err)
+    void requestTelegramFullscreen()
   }
 
   applyTelegramThemeVars()
@@ -237,7 +245,41 @@ export function syncTelegramSafeAreas() {
 export function isTelegramFullscreen(): boolean {
   if (!isInsideTelegram()) return false
   const webApp = getLegacyWebApp()
-  return Boolean(webApp?.isFullscreen)
+  if (webApp?.isFullscreen) return true
+  try {
+    if (typeof viewport.isFullscreen === 'function' && viewport.isFullscreen()) return true
+  } catch {
+    /* SDK signal unavailable */
+  }
+  return false
+}
+
+/** Request edge-to-edge fullscreen when Telegram supports it (Bot API 8.0+). */
+export async function requestTelegramFullscreen(): Promise<boolean> {
+  if (isTelegramFullscreen()) {
+    syncTelegramSafeAreas()
+    return true
+  }
+
+  try {
+    if (viewport.requestFullscreen?.isAvailable?.()) {
+      await viewport.requestFullscreen()
+      syncTelegramSafeAreas()
+      return isTelegramFullscreen()
+    }
+  } catch {
+    /* fall through to legacy */
+  }
+
+  try {
+    getLegacyWebApp()?.requestFullscreen?.()
+    // Fullscreen change is async; re-sync shortly after the request
+    window.setTimeout(syncTelegramSafeAreas, 50)
+    window.setTimeout(syncTelegramSafeAreas, 300)
+    return true
+  } catch {
+    return false
+  }
 }
 
 let safeAreaListenersBound = false
