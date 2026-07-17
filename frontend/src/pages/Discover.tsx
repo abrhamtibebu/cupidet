@@ -11,7 +11,7 @@ import { FiltersSheet, type FilterState } from '../components/FiltersSheet'
 import { BottomNav } from '../components/BottomNav'
 import { IconFilters } from '../components/Icons'
 import { telegramHaptic } from '../lib/telegram'
-import { MediaImage } from '../components/MediaImage'
+import { resolveMediaUrl } from '../lib/media'
 
 type Tab = 'all' | 'online' | 'location'
 

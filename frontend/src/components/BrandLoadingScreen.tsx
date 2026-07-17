@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { BrandLogo, BRAND_NAME } from './components/Brand'
+import { BrandLogo, BRAND_NAME } from './Brand'
 
 /** Full-screen brand loading — staggered SVG reveal + soft caption. */
 export function BrandLoadingScreen() {
