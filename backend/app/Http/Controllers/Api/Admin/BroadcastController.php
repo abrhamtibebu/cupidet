@@ -67,6 +67,7 @@ class BroadcastController extends Controller
     {
         $data = $request->validate([
             'message' => ['nullable', 'string', 'max:20000'],
+            'message_text' => ['nullable', 'string', 'max:20000'],
             'with_app_button' => ['sometimes', 'boolean'],
             'chat_ids' => ['sometimes', 'array'],
             'chat_ids.*' => ['integer'],
@@ -74,6 +75,13 @@ class BroadcastController extends Controller
         ]);
 
         $text = TelegramHtml::fromRichHtml($data['message'] ?? null);
+        if ($text === '') {
+            $text = trim((string) ($data['message_text'] ?? ''));
+        }
+        // Last resort: strip tags from raw HTML message
+        if ($text === '' && ! empty($data['message'])) {
+            $text = trim(html_entity_decode(strip_tags((string) $data['message']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
         $photoPath = null;
 
         if ($request->hasFile('image')) {

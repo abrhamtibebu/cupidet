@@ -11,8 +11,12 @@ use Throwable;
 
 class TelegramBotService
 {
-    public function sendMessage(int|string $chatId, string $text, ?array $replyMarkup = null): bool
-    {
+    public function sendMessage(
+        int|string $chatId,
+        string $text,
+        ?array $replyMarkup = null,
+        ?string $parseMode = 'HTML',
+    ): bool {
         $token = config('services.telegram.bot_token');
         if (! $token) {
             Log::warning('Telegram bot token missing; skip message', compact('chatId', 'text'));
@@ -23,9 +27,12 @@ class TelegramBotService
         $payload = [
             'chat_id' => $chatId,
             'text' => $text,
-            'parse_mode' => 'HTML',
             'disable_web_page_preview' => false,
         ];
+
+        if ($parseMode) {
+            $payload['parse_mode'] = $parseMode;
+        }
 
         if ($replyMarkup) {
             $payload['reply_markup'] = $replyMarkup;
@@ -42,6 +49,7 @@ class TelegramBotService
         string $photoAbsolutePath,
         ?string $caption = null,
         ?array $replyMarkup = null,
+        ?string $parseMode = 'HTML',
     ): bool {
         $token = config('services.telegram.bot_token');
         if (! $token) {
@@ -57,28 +65,44 @@ class TelegramBotService
         }
 
         try {
-            $pending = Http::timeout(60)->attach(
-                'photo',
-                file_get_contents($photoAbsolutePath),
-                basename($photoAbsolutePath),
-            );
+            $pending = Http::timeout(60)->asMultipart();
             if (app()->environment('local')) {
                 $pending = $pending->withoutVerifying();
             }
 
-            $payload = [
-                'chat_id' => $chatId,
-                'parse_mode' => 'HTML',
+            $parts = [
+                [
+                    'name' => 'chat_id',
+                    'contents' => (string) $chatId,
+                ],
+                [
+                    'name' => 'photo',
+                    'contents' => fopen($photoAbsolutePath, 'r'),
+                    'filename' => basename($photoAbsolutePath),
+                ],
             ];
+
             if ($caption !== null && $caption !== '') {
-                // Telegram caption limit
-                $payload['caption'] = mb_substr($caption, 0, 1024);
-            }
-            if ($replyMarkup) {
-                $payload['reply_markup'] = json_encode($replyMarkup, JSON_UNESCAPED_UNICODE);
+                $parts[] = [
+                    'name' => 'caption',
+                    'contents' => mb_substr($caption, 0, 1024),
+                ];
+                if ($parseMode) {
+                    $parts[] = [
+                        'name' => 'parse_mode',
+                        'contents' => $parseMode,
+                    ];
+                }
             }
 
-            $response = $pending->post("https://api.telegram.org/bot{$token}/sendPhoto", $payload);
+            if ($replyMarkup) {
+                $parts[] = [
+                    'name' => 'reply_markup',
+                    'contents' => json_encode($replyMarkup, JSON_UNESCAPED_UNICODE),
+                ];
+            }
+
+            $response = $pending->post("https://api.telegram.org/bot{$token}/sendPhoto", $parts);
             $response->throw();
 
             return true;

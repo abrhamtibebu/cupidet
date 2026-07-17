@@ -52,15 +52,50 @@ class BroadcastTelegramGroupsJob implements ShouldQueue
         $failed = 0;
 
         foreach ($query->cursor() as $group) {
+            $ok = false;
+
             if ($photoAbs) {
-                $ok = $bot->sendPhoto($group->chat_id, $photoAbs, $this->text !== '' ? $this->text : null, $markup);
-                // If caption was too long / rejected, still try text-only fallback after photo without caption
-                if (! $ok && $this->text !== '') {
-                    $ok = $bot->sendPhoto($group->chat_id, $photoAbs, null, $markup)
-                        && $bot->sendMessage($group->chat_id, $this->text, $markup);
+                $captionUsed = false;
+                $text = $this->text;
+                $canCaption = $text !== '' && mb_strlen($text) <= 1024;
+
+                if ($canCaption) {
+                    $ok = $bot->sendPhoto($group->chat_id, $photoAbs, $text, $markup);
+                    $captionUsed = $ok;
+
+                    if (! $ok) {
+                        $plain = trim(html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                        if ($plain !== '') {
+                            $ok = $bot->sendPhoto($group->chat_id, $photoAbs, $plain, $markup, null);
+                            $captionUsed = $ok;
+                        }
+                    }
+                }
+
+                if (! $ok) {
+                    $ok = $bot->sendPhoto($group->chat_id, $photoAbs, null, $markup);
+                }
+
+                // If the photo went out without a caption, send the description separately
+                if ($ok && $text !== '' && ! $captionUsed) {
+                    $sentText = $bot->sendMessage($group->chat_id, $text, $markup);
+                    if (! $sentText) {
+                        $plain = trim(html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                        if ($plain !== '') {
+                            $bot->sendMessage($group->chat_id, $plain, $markup, null);
+                        }
+                    }
+                } elseif (! $ok && $text !== '') {
+                    $ok = $bot->sendMessage($group->chat_id, $text, $markup);
                 }
             } else {
                 $ok = $this->text !== '' && $bot->sendMessage($group->chat_id, $this->text, $markup);
+                if (! $ok && $this->text !== '') {
+                    $plain = trim(html_entity_decode(strip_tags($this->text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    if ($plain !== '') {
+                        $ok = $bot->sendMessage($group->chat_id, $plain, $markup, null);
+                    }
+                }
             }
 
             if ($ok) {

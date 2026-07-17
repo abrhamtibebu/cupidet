@@ -71,10 +71,12 @@ export function AdminBroadcastPage() {
     return (editorRef.current?.innerHTML || '').trim()
   }
 
+  function editorText() {
+    return (editorRef.current?.innerText || editorRef.current?.textContent || '').trim()
+  }
+
   function editorIsEmpty() {
-    const el = editorRef.current
-    if (!el) return true
-    return !el.textContent?.trim() && !el.querySelector('img')
+    return !editorText()
   }
 
   async function send(chatIds?: number[]) {
@@ -87,11 +89,12 @@ export function AdminBroadcastPage() {
       }
       const res = await adminApi.telegramBroadcast({
         messageHtml: editorHtml(),
+        messageText: editorText(),
         withAppButton,
         chatIds,
         image,
       })
-      setStatus(`Queued for ${res.count} group(s)${res.has_photo ? ' with image' : ''}.`)
+      setStatus(`Sent to ${res.count} group(s)${res.has_photo ? ' with image' : ''}.`)
       if (editorRef.current) editorRef.current.innerHTML = ''
       onPickImage(null)
       if (fileRef.current) fileRef.current.value = ''

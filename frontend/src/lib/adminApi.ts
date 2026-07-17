@@ -264,12 +264,14 @@ export const adminApi = {
     }),
   telegramBroadcast: (payload: {
     messageHtml: string
+    messageText?: string
     withAppButton?: boolean
     chatIds?: number[]
     image?: File | null
   }) => {
     const form = new FormData()
-    if (payload.messageHtml) form.append('message', payload.messageHtml)
+    form.append('message', payload.messageHtml || '')
+    if (payload.messageText) form.append('message_text', payload.messageText)
     form.append('with_app_button', payload.withAppButton === false ? '0' : '1')
     payload.chatIds?.forEach((id) => form.append('chat_ids[]', String(id)))
     if (payload.image) form.append('image', payload.image)
