@@ -39,9 +39,9 @@ class PhotoController extends Controller
             $user->forceFill(['photo_url' => $url])->save();
         }
 
-        // On ephemeral local disk (or R2 without a public URL), prefer the media proxy
-        // so clients always have a reachable, stable URL.
-        if ($this->disk() === 'public' || ! config('filesystems.disks.'.$this->disk().'.url')) {
+        // On ephemeral local disk, prefer the media proxy so clients survive redeploys better
+        // once a CDN fallback exists; for uploads the proxy still streams while the file lives.
+        if ($this->disk() === 'public') {
             $photo->update(['image_url' => url('/api/media/photos/'.$photo->id)]);
             if ($makePrimary) {
                 $user->forceFill(['photo_url' => url('/api/media/photos/'.$photo->id)])->save();

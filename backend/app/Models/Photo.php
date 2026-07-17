@@ -41,11 +41,6 @@ class Photo extends Model
                 try {
                     if (Storage::disk($disk)->exists($this->path)) {
                         if ($disk === 's3' || $disk === 'r2') {
-                            // Without a public bucket URL, serve through our media proxy
-                            if (! config("filesystems.disks.{$disk}.url")) {
-                                return url('/api/media/photos/'.$this->id);
-                            }
-
                             return Storage::disk($disk)->url($this->path);
                         }
 

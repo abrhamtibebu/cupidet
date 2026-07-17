@@ -293,8 +293,7 @@ class TelegramAuthService
             }
 
             // Point at media proxy when we only have a local cache (no CDN)
-            // or R2 without a public bucket URL
-            if (! $cdnUrl && ($disk === 'public' || ! config("filesystems.disks.{$disk}.url"))) {
+            if (! $cdnUrl && $disk === 'public') {
                 $photo->update(['image_url' => url('/api/media/photos/'.$photo->id)]);
             }
 

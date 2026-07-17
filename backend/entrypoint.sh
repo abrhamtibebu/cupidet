@@ -23,9 +23,6 @@ sed -i 's|^listen = .*|listen = 127.0.0.1:9000|' /usr/local/etc/php-fpm.d/www.co
 mkdir -p /var/www/html/storage/app/public
 php artisan storage:link --force || true
 
-# Log which photo disk is active so deploys are easy to verify
-php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo "Photo storage disk: ".config("filesystems.cupid_disk").PHP_EOL;' || true
-
 # Clear stale config, then cache Laravel settings for performance
 php artisan config:clear
 php artisan config:cache

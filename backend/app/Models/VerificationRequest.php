@@ -44,12 +44,7 @@ class VerificationRequest extends Model
                 try {
                     if (Storage::disk($disk)->exists($this->path)) {
                         if ($disk === 's3' || $disk === 'r2') {
-                            // Selfies are sensitive — prefer a short-lived signed URL
-                            try {
-                                return Storage::disk($disk)->temporaryUrl($this->path, now()->addMinutes(30));
-                            } catch (\Throwable) {
-                                return Storage::disk($disk)->url($this->path);
-                            }
+                            return Storage::disk($disk)->url($this->path);
                         }
 
                         return Storage::disk('public')->url($this->path);

@@ -15,12 +15,7 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
-    // Auto-use durable R2 storage when its credentials are configured;
-    // fall back to the ephemeral local public disk otherwise.
-    'cupid_disk' => env(
-        'CUPID_FILESYSTEM_DISK',
-        env('R2_BUCKET') && env('R2_ACCESS_KEY_ID') ? 'r2' : 'public'
-    ),
+    'cupid_disk' => env('CUPID_FILESYSTEM_DISK', 'public'),
 
     /*
     |--------------------------------------------------------------------------
