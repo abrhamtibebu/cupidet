@@ -102,13 +102,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     // Separate rate-limit bucket for chat realtime polling (typing / messages / presence).
-    Route::middleware([EnsureUserActive::class, 'throttle:600,1'])->group(function () {
-        Route::get('/matches/{matchId}/messages', [ChatController::class, 'index']);
-        Route::post('/matches/{matchId}/messages', [ChatController::class, 'store']);
-        Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered']);
-        Route::post('/matches/{matchId}/read', [ChatController::class, 'read']);
-        Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing']);
-        Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus']);
-        Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence']);
-    });
+        Route::middleware([EnsureUserActive::class, 'throttle:600,1'])->group(function () {
+            Route::get('/matches/{matchId}/messages', [ChatController::class, 'index']);
+            Route::get('/matches/{matchId}/live', [ChatController::class, 'live']);
+            Route::post('/matches/{matchId}/messages', [ChatController::class, 'store']);
+            Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered']);
+            Route::post('/matches/{matchId}/read', [ChatController::class, 'read']);
+            Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing']);
+            Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus']);
+            Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence']);
+        });
 });

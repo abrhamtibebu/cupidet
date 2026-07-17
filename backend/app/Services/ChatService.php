@@ -128,6 +128,53 @@ class ChatService
             ->map(fn (Message $m) => $this->payload($m, $user->id));
     }
 
+    /**
+     * Cheap poll payload for near-instant typing + new messages + tick updates.
+     *
+     * @return array{messages: list<array<string, mixed>>, peer_typing: bool, statuses: list<array<string, mixed>>}
+     */
+    public function live(User $user, int $matchId, int $afterId = 0): array
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+
+        $new = $afterId > 0
+            ? Message::query()
+                ->where('match_id', $match->id)
+                ->where('id', '>', $afterId)
+                ->orderBy('id')
+                ->limit(40)
+                ->get()
+            : collect();
+
+        $incoming = $new->filter(fn (Message $m) => (int) $m->sender_id !== (int) $user->id);
+        if ($incoming->isNotEmpty()) {
+            $this->markDelivered($user, $match->id, $incoming->pluck('id')->all());
+            $this->markRead($user, $match->id);
+            // Re-load so payloads include delivered/read timestamps we just set.
+            $new = Message::query()->whereIn('id', $new->pluck('id'))->orderBy('id')->get();
+        }
+
+        $statuses = Message::query()
+            ->where('match_id', $match->id)
+            ->where('sender_id', $user->id)
+            ->orderByDesc('id')
+            ->limit(25)
+            ->get(['id', 'delivered_at', 'read_at'])
+            ->map(fn (Message $m) => [
+                'id' => $m->id,
+                'delivered_at' => $m->delivered_at?->toIso8601String(),
+                'read_at' => $m->read_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'messages' => $new->map(fn (Message $m) => $this->payload($m, $user->id))->values()->all(),
+            'peer_typing' => $this->isTypingCached($match->id, (int) $match->otherUser($user->id)->id),
+            'statuses' => $statuses,
+        ];
+    }
+
     public function send(User $user, int $matchId, string $body): array
     {
         $match = $this->findAuthorizedMatch($user, $matchId);
@@ -445,7 +492,7 @@ class ChatService
         // Store a timestamp so polling clients can tell "still typing" vs stale cache.
         $key = $this->typingKey($match->id, $user->id);
         if ($typing) {
-            Cache::put($key, now()->getTimestamp(), now()->addSeconds(8));
+            Cache::put($key, now()->getTimestamp(), now()->addSeconds(5));
         } else {
             Cache::forget($key);
         }
@@ -487,7 +534,7 @@ class ChatService
             return true;
         }
 
-        return (now()->getTimestamp() - (int) $ts) <= 6;
+        return (now()->getTimestamp() - (int) $ts) <= 4;
     }
 
     private function typingKey(int $matchId, int $userId): string

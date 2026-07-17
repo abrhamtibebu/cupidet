@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { getEcho } from '../lib/echo'
 import { useNavBadges } from '../lib/navBadges'
+import { pollMs } from '../lib/perf'
 import type { ChatMessage, MatchItem } from '../types'
 import { BottomNav } from '../components/BottomNav'
 import { resolveMediaUrl } from '../lib/media'
@@ -75,7 +76,7 @@ export function MessagesPage() {
 
     const echo = getEcho()
     const channels: string[] = []
-    let poll = window.setInterval(() => void load(), 3000)
+    let poll = window.setInterval(() => void load(), pollMs(2000, 2000))
 
     const clearTypingTimer = (matchId: number) => {
       if (typingTimers.current[matchId]) {

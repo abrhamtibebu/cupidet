@@ -169,6 +169,12 @@ export const api = {
       peer_typing?: boolean
     }>(`/matches/${matchId}/messages${mark}`)
   },
+  liveChat: (matchId: number, afterId = 0) =>
+    request<{
+      messages: unknown[]
+      peer_typing: boolean
+      statuses: { id: number; delivered_at?: string | null; read_at?: string | null }[]
+    }>(`/matches/${matchId}/live?after_id=${afterId}`, { timeoutMs: 20000 }),
   sendMessage: (matchId: number, body: string) =>
     request<{ message: unknown }>(`/matches/${matchId}/messages`, {
       method: 'POST',

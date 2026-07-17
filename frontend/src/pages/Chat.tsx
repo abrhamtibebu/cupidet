@@ -139,8 +139,10 @@ export function ChatPage() {
   const stickToBottom = useRef(true)
   const typingPulse = useRef<number | null>(null)
   const lastTypingSent = useRef(false)
+  const lastTypingEmitAt = useRef(0)
   const typingHideTimer = useRef<number | null>(null)
   const messagesInFlight = useRef(false)
+  const lastMsgIdRef = useRef(0)
   const userIdRef = useRef(user?.id)
   const inputFocused = useRef(false)
   const starterSent = useRef(false)
@@ -154,7 +156,7 @@ export function ChatPage() {
     if (typing) {
       setPeerTyping(true)
       if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
-      typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 5000)
+      typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 2800)
       return
     }
     // Don't clear immediately on a single false poll — let the sticky timer expire.
@@ -203,6 +205,9 @@ export function ChatPage() {
         }
         return [...prev, normalized]
       })
+      if (normalized.id > 0) {
+        lastMsgIdRef.current = Math.max(lastMsgIdRef.current, normalized.id)
+      }
       if (stickToBottom.current) {
         requestAnimationFrame(() => scrollToLatest(false))
       }
@@ -229,6 +234,9 @@ export function ChatPage() {
     setMessages((prev) => {
       const pending = prev.filter((m) => m.id < 0)
       const normalized = server.map((m) => normalizeMessage(m, userIdRef.current))
+      for (const m of normalized) {
+        if (m.id > 0) lastMsgIdRef.current = Math.max(lastMsgIdRef.current, m.id)
+      }
       const stillPending = pending.filter(
         (p) =>
           !normalized.some(
@@ -245,6 +253,29 @@ export function ChatPage() {
     setUpcomingDate((settings.upcoming_date as MatchDate) || null)
   }
 
+  const pollLive = useCallback(async () => {
+    if (!id || messagesInFlight.current) return
+    messagesInFlight.current = true
+    try {
+      const res = await api.liveChat(id, lastMsgIdRef.current)
+      applyPeerTyping(Boolean(res.peer_typing))
+      const incoming = (res.messages || []) as ChatMessage[]
+      if (incoming.length) {
+        for (const raw of incoming) {
+          const msg = normalizeMessage(raw, userIdRef.current)
+          if (msg.id > 0) lastMsgIdRef.current = Math.max(lastMsgIdRef.current, msg.id)
+          upsertMessage(msg)
+        }
+        void refreshBadges()
+      }
+      if (res.statuses?.length) {
+        applyStatus(res.statuses)
+      }
+    } finally {
+      messagesInFlight.current = false
+    }
+  }, [id, applyPeerTyping, upsertMessage, applyStatus, refreshBadges])
+
   const loadMessages = useCallback(async (markSeen = false) => {
     if (!id || messagesInFlight.current) return
     messagesInFlight.current = true
@@ -257,22 +288,10 @@ export function ChatPage() {
       if (typeof res.peer_typing === 'boolean') {
         applyPeerTyping(res.peer_typing)
       }
-
-      // Lightweight seen sync without re-running mark on every poll payload.
-      if (
-        !markSeen &&
-        document.visibilityState === 'visible' &&
-        data.some((m) => m.sender_id !== userIdRef.current && !m.read_at)
-      ) {
-        void api
-          .markRead(id)
-          .then(() => refreshBadges())
-          .catch(() => undefined)
-      }
     } finally {
       messagesInFlight.current = false
     }
-  }, [id, mergeServerMessages, refreshBadges, applyPeerTyping])
+  }, [id, mergeServerMessages, applyPeerTyping])
 
   const stopTypingPulse = () => {
     if (typingPulse.current) {
@@ -289,13 +308,23 @@ export function ChatPage() {
   }
 
   const startTypingPulse = () => {
-    if (typingPulse.current) return
-    emitTyping(true, true)
-    typingPulse.current = window.setInterval(() => {
-      if (bodyRef.current.trim()) {
-        emitTyping(true, true)
-      }
-    }, 2500)
+    const now = Date.now()
+    if (!typingPulse.current) {
+      emitTyping(true, true)
+      lastTypingEmitAt.current = now
+      typingPulse.current = window.setInterval(() => {
+        if (bodyRef.current.trim()) {
+          emitTyping(true, true)
+          lastTypingEmitAt.current = Date.now()
+        }
+      }, 1000)
+      return
+    }
+    // Refresh typing signal quickly while keys are coming in (max ~2.5/sec).
+    if (now - lastTypingEmitAt.current > 400) {
+      emitTyping(true, true)
+      lastTypingEmitAt.current = now
+    }
   }
 
   // Presence only after the chat has loaded — avoid stacking cold-start requests.
@@ -322,6 +351,7 @@ export function ChatPage() {
     if (!id) return
     let active = true
     let pollTimer: number | undefined
+    lastMsgIdRef.current = 0
 
     const boot = async () => {
       setLoading(true)
@@ -336,7 +366,6 @@ export function ChatPage() {
         setLoading(false)
         void refreshBadges()
 
-        // Fallback if an older API build omitted peer on the messages payload.
         if (!msgs.peer) {
           const convos = await api.conversations().catch(() => null)
           if (!active || !convos) return
@@ -348,20 +377,19 @@ export function ChatPage() {
           }
         }
 
-        // Start polling only after the first successful load (avoids stampeding a cold Render box).
+        // Fast lightweight live poll for typing + new messages (~sub-second feel).
         if (active) {
           pollTimer = window.setInterval(() => {
-            void loadMessages(false).catch(() => undefined)
-          }, pollMs(2000, 2500))
+            void pollLive().catch(() => undefined)
+          }, pollMs(700, 850))
         }
       } catch (e) {
         if (active) {
           setError(e instanceof Error ? e.message : 'Failed to load chat')
           setLoading(false)
-          // Retry polling even after a failed boot — backend may still be waking up.
           pollTimer = window.setInterval(() => {
-            void loadMessages(false).catch(() => undefined)
-          }, pollMs(3000, 4000))
+            void pollLive().catch(() => undefined)
+          }, pollMs(1500, 2000))
         }
       }
     }
@@ -370,7 +398,7 @@ export function ChatPage() {
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        void loadMessages(true).catch(() => undefined)
+        void pollLive().catch(() => undefined)
       }
     }
     document.addEventListener('visibilitychange', onVisible)
@@ -492,6 +520,8 @@ export function ChatPage() {
         client_id: clientId,
         is_mine: true,
       })
+      // Pull delivery/read ticks immediately instead of waiting for the next poll.
+      void pollLive().catch(() => undefined)
     } catch (err) {
       setMessages((prev) =>
         prev.map((m) => (m.client_id === clientId ? { ...m, status: 'failed' } : m)),

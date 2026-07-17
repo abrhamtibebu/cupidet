@@ -31,9 +31,22 @@ class ChatController extends Controller
             'data' => $chat->messages($user, $matchId, $markSeen),
             'settings' => $chat->settings($user, $matchId),
             'peer' => $chat->peerCard($user, $matchId),
-            // Piggyback typing so the client doesn't need a second poll every second.
             'peer_typing' => $chat->peerTyping($user, $matchId),
         ]);
+    }
+
+    /**
+     * Lightweight realtime poll: only new messages + typing + recent delivery ticks.
+     */
+    public function live(Request $request, int $matchId, ChatService $chat): JsonResponse
+    {
+        $data = $request->validate([
+            'after_id' => ['sometimes', 'integer', 'min:0'],
+        ]);
+
+        return response()->json(
+            $chat->live($request->user(), $matchId, (int) ($data['after_id'] ?? 0))
+        );
     }
 
     public function store(Request $request, int $matchId, ChatService $chat): JsonResponse
