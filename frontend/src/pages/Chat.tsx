@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { getEcho } from '../lib/echo'
 import { useNavBadges } from '../lib/navBadges'
+import { pollMs } from '../lib/perf'
 import type { ChatMessage, ChatSettings, DiscoverCard, MatchDate, MatchItem } from '../types'
 import { IconBack } from '../components/Icons'
 import { resolveMediaUrl } from '../lib/media'
@@ -139,6 +140,7 @@ export function ChatPage() {
   const typingPulse = useRef<number | null>(null)
   const lastTypingSent = useRef(false)
   const typingHideTimer = useRef<number | null>(null)
+  const messagesInFlight = useRef(false)
   const userIdRef = useRef(user?.id)
   const inputFocused = useRef(false)
   const starterSent = useRef(false)
@@ -244,26 +246,31 @@ export function ChatPage() {
   }
 
   const loadMessages = useCallback(async (markSeen = false) => {
-    if (!id) return
-    const res = await api.getMessages(id, { markSeen })
-    const data = res.data as ChatMessage[]
-    mergeServerMessages(data)
-    applySettings(res.settings as ChatSettings | undefined)
-    if (res.peer) setPeer(res.peer as DiscoverCard)
-    if (typeof res.peer_typing === 'boolean') {
-      applyPeerTyping(res.peer_typing)
-    }
+    if (!id || messagesInFlight.current) return
+    messagesInFlight.current = true
+    try {
+      const res = await api.getMessages(id, { markSeen })
+      const data = res.data as ChatMessage[]
+      mergeServerMessages(data)
+      applySettings(res.settings as ChatSettings | undefined)
+      if (res.peer) setPeer(res.peer as DiscoverCard)
+      if (typeof res.peer_typing === 'boolean') {
+        applyPeerTyping(res.peer_typing)
+      }
 
-    // Lightweight seen sync without re-running mark on every poll payload.
-    if (
-      !markSeen &&
-      document.visibilityState === 'visible' &&
-      data.some((m) => m.sender_id !== userIdRef.current && !m.read_at)
-    ) {
-      void api
-        .markRead(id)
-        .then(() => refreshBadges())
-        .catch(() => undefined)
+      // Lightweight seen sync without re-running mark on every poll payload.
+      if (
+        !markSeen &&
+        document.visibilityState === 'visible' &&
+        data.some((m) => m.sender_id !== userIdRef.current && !m.read_at)
+      ) {
+        void api
+          .markRead(id)
+          .then(() => refreshBadges())
+          .catch(() => undefined)
+      }
+    } finally {
+      messagesInFlight.current = false
     }
   }, [id, mergeServerMessages, refreshBadges, applyPeerTyping])
 
@@ -288,38 +295,20 @@ export function ChatPage() {
       if (bodyRef.current.trim()) {
         emitTyping(true, true)
       }
-    }, 2000)
+    }, 2500)
   }
 
-  // Backup typing poll (message poll already includes peer_typing).
+  // Presence only after the chat has loaded — avoid stacking cold-start requests.
   useEffect(() => {
-    if (!id) return
-    let active = true
-    const check = async () => {
-      try {
-        const res = await api.typingStatus(id)
-        if (!active) return
-        applyPeerTyping(res.typing)
-      } catch {
-        /* ignore */
-      }
-    }
-    void check()
-    const timer = window.setInterval(() => void check(), 2000)
-    return () => {
-      active = false
-      window.clearInterval(timer)
-    }
-  }, [id, applyPeerTyping])
-
-  useEffect(() => {
-    if (!id) return
+    if (!id || loading) return
     const ping = () => {
       void api.presence(id).catch(() => undefined)
     }
     ping()
-    const timer = window.setInterval(ping, 30000)
-    const onFocus = () => ping()
+    const timer = window.setInterval(ping, 45000)
+    const onFocus = () => {
+      if (document.visibilityState === 'visible') ping()
+    }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onFocus)
     return () => {
@@ -327,7 +316,7 @@ export function ChatPage() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
     }
-  }, [id])
+  }, [id, loading])
 
   useEffect(() => {
     if (!id) return
@@ -336,6 +325,7 @@ export function ChatPage() {
 
     const boot = async () => {
       setLoading(true)
+      setError('')
       try {
         const msgs = await api.getMessages(id, { markSeen: true })
         if (!active) return
@@ -357,25 +347,26 @@ export function ChatPage() {
             if (typeof match.muted === 'boolean') setMuted(match.muted)
           }
         }
+
+        // Start polling only after the first successful load (avoids stampeding a cold Render box).
+        if (active) {
+          pollTimer = window.setInterval(() => {
+            void loadMessages(false).catch(() => undefined)
+          }, pollMs(2000, 2500))
+        }
       } catch (e) {
         if (active) {
           setError(e instanceof Error ? e.message : 'Failed to load chat')
           setLoading(false)
+          // Retry polling even after a failed boot — backend may still be waking up.
+          pollTimer = window.setInterval(() => {
+            void loadMessages(false).catch(() => undefined)
+          }, pollMs(3000, 4000))
         }
       }
     }
 
     void boot()
-
-    // Keep a fast poll while the chat is open. Echo events are bonus when they work;
-    // never slow the poll down just because the socket claims "connected".
-    const startPolling = (ms: number) => {
-      if (pollTimer) window.clearInterval(pollTimer)
-      pollTimer = window.setInterval(() => {
-        void loadMessages(false).catch(() => undefined)
-      }, ms)
-    }
-    startPolling(1500)
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') {

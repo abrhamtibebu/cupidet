@@ -26,13 +26,14 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers || {})
+async function request<T>(path: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
+  const { timeoutMs = 30000, ...fetchOptions } = options
+  const headers = new Headers(fetchOptions.headers || {})
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  if (!(options.body instanceof FormData)) {
+  if (!(fetchOptions.body instanceof FormData)) {
     headers.set('Accept', 'application/json')
-    if (options.body && !headers.has('Content-Type')) {
+    if (fetchOptions.body && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json')
     }
   } else {
@@ -40,12 +41,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   const controller = new AbortController()
-  const timeoutMs = 15000
   const timer = window.setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const res = await fetch(`${API_URL}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers,
       signal: controller.signal,
     })
