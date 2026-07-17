@@ -328,14 +328,11 @@ class DashboardController extends Controller
             ->map(function (Message $message) {
                 $user = $message->sender;
                 $name = $user?->profile?->name ?? $user?->username ?? 'Someone';
-                $body = (string) $message->body;
 
                 return [
                     'name' => $name,
-                    // E2E-encrypted messages are ciphertext — admins never see content.
-                    'preview' => str_starts_with($body, 'enc1:')
-                        ? '🔒 Encrypted message'
-                        : str($body)->limit(48)->toString(),
+                    // Private by design: admins can see that a message was sent, never its content.
+                    'preview' => '🔒 Private message',
                     'time' => $message->created_at?->diffForHumans(),
                     'photo' => $user?->photo_url,
                 ];

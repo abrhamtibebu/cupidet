@@ -34,7 +34,8 @@ class ChatRequestsWidget extends Widget
                     ?? $user?->username
                     ?? $user?->first_name
                     ?? 'Someone';
-                $preview = str((string) $message->body)->limit(42)->toString();
+                // Private by design: admins never see message content.
+                $preview = '🔒 Private message';
                 $initials = strtoupper(mb_substr(preg_replace('/\s+/', '', $name) ?: 'U', 0, 2));
 
                 return [
