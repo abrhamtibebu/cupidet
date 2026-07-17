@@ -26,6 +26,8 @@ type LegacyWebApp = {
   themeParams?: Record<string, string>
   ready?: () => void
   expand?: () => void
+  isFullscreen?: boolean
+  isExpanded?: boolean
   safeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
   contentSafeAreaInset?: { top?: number; bottom?: number; left?: number; right?: number }
   onEvent?: (event: string, callback: () => void) => void
@@ -225,6 +227,17 @@ export function syncTelegramSafeAreas() {
   root.style.setProperty('--app-safe-bottom', `${bottom}px`)
   root.style.setProperty('--app-safe-left', `${left}px`)
   root.style.setProperty('--app-safe-right', `${right}px`)
+
+  // Extra top spacing (safe-top + 45px) only in true Telegram fullscreen.
+  // Compact / fullsize / browser: Telegram chrome already clears the top — no pad.
+  root.classList.toggle('tg-fullscreen', isTelegramFullscreen())
+}
+
+/** True only when Telegram Mini App is in edge-to-edge fullscreen (not compact/fullsize). */
+export function isTelegramFullscreen(): boolean {
+  if (!isInsideTelegram()) return false
+  const webApp = getLegacyWebApp()
+  return Boolean(webApp?.isFullscreen)
 }
 
 let safeAreaListenersBound = false

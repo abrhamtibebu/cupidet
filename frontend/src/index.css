@@ -33,6 +33,12 @@
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--app-safe-bottom));
   --safe-left: max(env(safe-area-inset-left, 0px), var(--app-safe-left));
   --safe-right: max(env(safe-area-inset-right, 0px), var(--app-safe-right));
+  /* Extra top clearance only when Telegram opens the Mini App in true fullscreen */
+  --app-top-spacing: 0px;
+}
+
+html.tg-fullscreen {
+  --app-top-spacing: calc(var(--safe-top) + 45px);
 }
 
 * {
@@ -96,7 +102,7 @@ textarea {
   max-width: 430px;
   margin: 0 auto;
   padding:
-    calc(var(--safe-top) + 45px)
+    var(--app-top-spacing)
     max(16px, var(--safe-right))
     max(100px, calc(24px + env(safe-area-inset-bottom, 0px)))
     max(16px, var(--safe-left));
@@ -234,7 +240,7 @@ textarea {
   display: flex;
   flex-direction: column;
   padding:
-    calc(var(--safe-top) + 45px)
+    var(--app-top-spacing)
     max(14px, var(--safe-right))
     calc(4.75rem + var(--safe-bottom))
     max(14px, var(--safe-left));
