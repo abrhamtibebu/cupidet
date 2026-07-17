@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ActionController;
 use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
+use App\Http\Controllers\Api\Admin\BroadcastController as AdminBroadcastController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\ResourcesController as AdminResourcesController;
 use App\Http\Controllers\Api\AuthController;
@@ -44,6 +45,10 @@ Route::prefix('admin')->group(function () {
         Route::patch('/verifications/{verification}', [AdminResourcesController::class, 'updateVerification']);
         Route::get('/reports', [AdminResourcesController::class, 'reports']);
         Route::patch('/reports/{report}', [AdminResourcesController::class, 'updateReport']);
+
+        Route::get('/telegram-groups', [AdminBroadcastController::class, 'groups']);
+        Route::patch('/telegram-groups/{telegramGroup}', [AdminBroadcastController::class, 'updateGroup']);
+        Route::post('/telegram-broadcast', [AdminBroadcastController::class, 'broadcast']);
     });
 });
 

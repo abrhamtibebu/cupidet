@@ -21,6 +21,7 @@ import { AdminDemographicsPage } from './pages/admin/Demographics'
 import { AdminApprovalsPage } from './pages/admin/Approvals'
 import { AdminLanguagesPage } from './pages/admin/Languages'
 import { AdminReportsPage } from './pages/admin/Reports'
+import { AdminBroadcastPage } from './pages/admin/Broadcast'
 
 const INTRO_KEY = 'cupid_intro_v2'
 
@@ -139,6 +140,7 @@ function AdminApp() {
             <Route path="demographics" element={<AdminDemographicsPage />} />
             <Route path="approvals" element={<AdminApprovalsPage />} />
             <Route path="languages" element={<AdminLanguagesPage />} />
+            <Route path="broadcast" element={<AdminBroadcastPage />} />
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="contact" element={<Navigate to="/admin/reports" replace />} />
           </Route>

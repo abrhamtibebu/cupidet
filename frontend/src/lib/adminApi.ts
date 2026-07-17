@@ -78,6 +78,18 @@ export type AdminReportRow = {
   created_at: string | null
 }
 
+export type AdminTelegramGroup = {
+  id: number
+  chat_id: number
+  title: string | null
+  type: string
+  username: string | null
+  is_active: boolean
+  joined_at: string | null
+  left_at: string | null
+  updated_at: string | null
+}
+
 export type AdminBreakdown = {
   name: string
   count: number
@@ -94,7 +106,7 @@ export function setAdminToken(token: string | null) {
   else localStorage.removeItem(TOKEN_KEY)
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 15000): Promise<T> {
   const headers = new Headers(options.headers || {})
   const token = getAdminToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
@@ -104,7 +116,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   const controller = new AbortController()
-  const timer = window.setTimeout(() => controller.abort(), 15000)
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const res = await fetch(`${API_URL}/admin${path}`, {
@@ -223,4 +235,30 @@ export const adminApi = {
     request<{ data: AdminReportRow[]; meta: AdminMeta }>(`/reports${qs(params || {})}`),
   updateReport: (id: number, body: { status?: string; notes?: string }) =>
     request(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  telegramGroups: (params?: { active_only?: boolean }) =>
+    request<{ data: AdminTelegramGroup[]; meta: { total: number; active: number } }>(
+      `/telegram-groups${qs({ active_only: params?.active_only ? 1 : undefined })}`,
+    ),
+  updateTelegramGroup: (id: number, is_active: boolean) =>
+    request<{ group: { id: number; is_active: boolean } }>(`/telegram-groups/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active }),
+    }),
+  telegramBroadcast: (payload: {
+    messageHtml: string
+    withAppButton?: boolean
+    chatIds?: number[]
+    image?: File | null
+  }) => {
+    const form = new FormData()
+    if (payload.messageHtml) form.append('message', payload.messageHtml)
+    form.append('with_app_button', payload.withAppButton === false ? '0' : '1')
+    payload.chatIds?.forEach((id) => form.append('chat_ids[]', String(id)))
+    if (payload.image) form.append('image', payload.image)
+    return request<{ queued: boolean; count: number; has_photo: boolean }>(
+      '/telegram-broadcast',
+      { method: 'POST', body: form },
+      60000,
+    )
+  },
 }
