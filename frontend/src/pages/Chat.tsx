@@ -2,9 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { bindConnectionState, getEcho } from '../lib/echo'
+import { getEcho } from '../lib/echo'
 import { useNavBadges } from '../lib/navBadges'
-import type { ChatMessage, ChatSettings, MatchDate, MatchItem } from '../types'
+import type { ChatMessage, ChatSettings, DiscoverCard, MatchDate, MatchItem } from '../types'
 import { IconBack } from '../components/Icons'
 import { resolveMediaUrl } from '../lib/media'
 import { ReportSheet } from '../components/ReportSheet'
@@ -114,12 +114,13 @@ export function ChatPage() {
   const { user } = useAuth()
   const { refreshBadges } = useNavBadges()
   const navigate = useNavigate()
+  const locationPeer =
+    (location.state as { peer?: DiscoverCard; initialMessage?: string } | null)?.peer ?? null
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [peer, setPeer] = useState<MatchItem['user'] | null>(null)
+  const [peer, setPeer] = useState<DiscoverCard | null>(locationPeer)
   const [body, setBody] = useState('')
   const [peerTyping, setPeerTyping] = useState(false)
   const [error, setError] = useState('')
-  const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [dateOpen, setDateOpen] = useState(false)
@@ -146,6 +147,16 @@ export function ChatPage() {
     typeof (location.state as { initialMessage?: string } | null)?.initialMessage === 'string'
       ? (location.state as { initialMessage: string }).initialMessage
       : ''
+
+  const applyPeerTyping = useCallback((typing: boolean) => {
+    if (typing) {
+      setPeerTyping(true)
+      if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
+      typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 5000)
+      return
+    }
+    // Don't clear immediately on a single false poll — let the sticky timer expire.
+  }, [])
 
   useEffect(() => {
     userIdRef.current = user?.id
@@ -238,14 +249,9 @@ export function ChatPage() {
     const data = res.data as ChatMessage[]
     mergeServerMessages(data)
     applySettings(res.settings as ChatSettings | undefined)
+    if (res.peer) setPeer(res.peer as DiscoverCard)
     if (typeof res.peer_typing === 'boolean') {
-      if (res.peer_typing) {
-        setPeerTyping(true)
-        if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
-        typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 4000)
-      } else {
-        setPeerTyping(false)
-      }
+      applyPeerTyping(res.peer_typing)
     }
 
     // Lightweight seen sync without re-running mark on every poll payload.
@@ -259,7 +265,7 @@ export function ChatPage() {
         .then(() => refreshBadges())
         .catch(() => undefined)
     }
-  }, [id, mergeServerMessages, refreshBadges])
+  }, [id, mergeServerMessages, refreshBadges, applyPeerTyping])
 
   const stopTypingPulse = () => {
     if (typingPulse.current) {
@@ -279,7 +285,7 @@ export function ChatPage() {
     if (typingPulse.current) return
     emitTyping(true, true)
     typingPulse.current = window.setInterval(() => {
-      if (inputFocused.current && bodyRef.current.trim()) {
+      if (bodyRef.current.trim()) {
         emitTyping(true, true)
       }
     }, 2000)
@@ -293,13 +299,7 @@ export function ChatPage() {
       try {
         const res = await api.typingStatus(id)
         if (!active) return
-        if (res.typing) {
-          setPeerTyping(true)
-          if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
-          typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 4000)
-        } else {
-          setPeerTyping(false)
-        }
+        applyPeerTyping(res.typing)
       } catch {
         /* ignore */
       }
@@ -309,9 +309,8 @@ export function ChatPage() {
     return () => {
       active = false
       window.clearInterval(timer)
-      if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
     }
-  }, [id])
+  }, [id, applyPeerTyping])
 
   useEffect(() => {
     if (!id) return
@@ -342,16 +341,21 @@ export function ChatPage() {
         if (!active) return
         mergeServerMessages(msgs.data as ChatMessage[])
         applySettings(msgs.settings as ChatSettings | undefined)
+        if (msgs.peer) setPeer(msgs.peer as DiscoverCard)
+        if (typeof msgs.peer_typing === 'boolean') applyPeerTyping(msgs.peer_typing)
         setLoading(false)
         void refreshBadges()
 
-        const convos = await api.conversations()
-        if (!active) return
-        const match = (convos.data as MatchItem[]).find((m) => m.id === id)
-        if (match) {
-          setPeer(match.user)
-          if (match.upcoming_date) setUpcomingDate(match.upcoming_date)
-          if (typeof match.muted === 'boolean') setMuted(match.muted)
+        // Fallback if an older API build omitted peer on the messages payload.
+        if (!msgs.peer) {
+          const convos = await api.conversations().catch(() => null)
+          if (!active || !convos) return
+          const match = (convos.data as MatchItem[]).find((m) => Number(m.id) === id)
+          if (match?.user) {
+            setPeer(match.user)
+            if (match.upcoming_date) setUpcomingDate(match.upcoming_date)
+            if (typeof match.muted === 'boolean') setMuted(match.muted)
+          }
         }
       } catch (e) {
         if (active) {
@@ -362,12 +366,6 @@ export function ChatPage() {
     }
 
     void boot()
-
-    const echo = getEcho()
-    const unbindConn = bindConnectionState((isUp) => {
-      if (!active) return
-      setConnected(isUp)
-    })
 
     // Keep a fast poll while the chat is open. Echo events are bonus when they work;
     // never slow the poll down just because the socket claims "connected".
@@ -387,10 +385,10 @@ export function ChatPage() {
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
 
+    const echo = getEcho()
     if (!echo) {
       return () => {
         active = false
-        unbindConn()
         if (pollTimer) window.clearInterval(pollTimer)
         document.removeEventListener('visibilitychange', onVisible)
         window.removeEventListener('focus', onVisible)
@@ -404,6 +402,7 @@ export function ChatPage() {
       const incoming = payload.message
       upsertMessage(incoming)
       if (incoming.sender_id !== userIdRef.current) {
+        if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
         setPeerTyping(false)
         void api
           .markDelivered(id, [incoming.id])
@@ -424,11 +423,9 @@ export function ChatPage() {
 
     const onTyping = (payload: { user_id: number; typing: boolean }) => {
       if (payload.user_id === userIdRef.current) return
-      if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
-      if (payload.typing) {
-        setPeerTyping(true)
-        typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 4000)
-      } else {
+      applyPeerTyping(payload.typing)
+      if (!payload.typing) {
+        if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
         setPeerTyping(false)
       }
     }
@@ -437,14 +434,8 @@ export function ChatPage() {
     channel.listen('.message.status', onStatus)
     channel.listen('.user.typing', onTyping)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(channel as any).subscription?.bind?.('pusher:subscription_succeeded', () => {
-      setConnected(true)
-    })
-
     return () => {
       active = false
-      unbindConn()
       if (pollTimer) window.clearInterval(pollTimer)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
@@ -454,10 +445,9 @@ export function ChatPage() {
       channel.stopListening('.message.status')
       channel.stopListening('.user.typing')
       echo.leave(`match.${id}`)
-      setConnected(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, upsertMessage, applyStatus, loadMessages, mergeServerMessages])
+  }, [id])
 
   useLayoutEffect(() => {
     if (stickToBottom.current) scrollToLatest(false)
@@ -643,16 +633,24 @@ export function ChatPage() {
               <p className="text-xs text-muted">
                 {peerTyping ? (
                   <span className="text-lime">typing…</span>
-                ) : connected ? (
-                  peer.is_online ? 'Online' : 'Live'
+                ) : peer.is_online ? (
+                  'Online'
+                ) : peer.last_active ? (
+                  `Active ${new Date(peer.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                 ) : (
-                  'Connecting…'
+                  'Offline'
                 )}
               </p>
             </div>
           </button>
         ) : (
-          <div className="flex-1" />
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="skeleton h-10 w-10 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="skeleton h-3.5 w-28 rounded-full" />
+              <div className="skeleton h-2.5 w-16 rounded-full" />
+            </div>
+          </div>
         )}
         <button
           type="button"
@@ -821,6 +819,7 @@ export function ChatPage() {
           value={body}
           disabled={loading}
           onChange={(e) => onBodyChange(e.target.value)}
+          onInput={(e) => onBodyChange((e.target as HTMLInputElement).value)}
           onFocus={() => {
             inputFocused.current = true
             if (bodyRef.current.trim()) startTypingPulse()

@@ -218,7 +218,7 @@ export function MessagesPage() {
                   key={`story-${match.id}`}
                   type="button"
                   className="shrink-0 text-center"
-                  onClick={() => navigate(`/chat/${match.id}`)}
+                  onClick={() => navigate(`/chat/${match.id}`, { state: { peer: match.user } })}
                 >
                   <div className="relative">
                     <img
@@ -245,7 +245,7 @@ export function MessagesPage() {
                 <button
                   key={match.id}
                   type="button"
-                  onClick={() => navigate(`/chat/${match.id}`)}
+                  onClick={() => navigate(`/chat/${match.id}`, { state: { peer: match.user } })}
                   className="flex w-full items-center gap-3 rounded-2xl px-2 py-3 text-left hover:bg-panel"
                 >
                   <div className="relative">

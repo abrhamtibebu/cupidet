@@ -71,8 +71,7 @@ class ChatService
                 ...$item,
                 'last_message' => $last ? $this->payload($last, $user->id) : null,
                 'unread_count' => (int) ($unreadByMatch[$item['id']] ?? 0),
-                'peer_typing' => $otherId > 0
-                    && (bool) Cache::get($this->typingKey($item['id'], $otherId), false),
+                'peer_typing' => $otherId > 0 && $this->isTypingCached($item['id'], $otherId),
                 'muted' => (bool) ($settings?->muted),
                 'upcoming_date' => $upcoming ? $this->datePayload($upcoming) : null,
             ];
@@ -443,10 +442,10 @@ class ChatService
     {
         $match = $this->findAuthorizedMatch($user, $matchId);
 
-        // Cache state so clients without a live websocket can poll it.
+        // Store a timestamp so polling clients can tell "still typing" vs stale cache.
         $key = $this->typingKey($match->id, $user->id);
         if ($typing) {
-            Cache::put($key, true, now()->addSeconds(6));
+            Cache::put($key, now()->getTimestamp(), now()->addSeconds(8));
         } else {
             Cache::forget($key);
         }
@@ -459,7 +458,36 @@ class ChatService
         $match = $this->findAuthorizedMatch($user, $matchId);
         $other = $match->otherUser($user->id);
 
-        return (bool) Cache::get($this->typingKey($match->id, $other->id), false);
+        return $this->isTypingCached($match->id, (int) $other->id);
+    }
+
+    /**
+     * Other participant card for the open chat header (avoids a second conversations round-trip).
+     *
+     * @return array<string, mixed>
+     */
+    public function peerCard(User $user, int $matchId): array
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+        $other = $match->otherUser($user->id);
+        $other->loadMissing(['profile', 'photos', 'interests', 'primaryPhoto', 'prompts']);
+
+        return $this->discovery->cardPayload($other, $user);
+    }
+
+    private function isTypingCached(int $matchId, int $userId): bool
+    {
+        $ts = Cache::get($this->typingKey($matchId, $userId));
+        if (! $ts) {
+            return false;
+        }
+
+        // Legacy bool values from older deploys.
+        if ($ts === true || $ts === 1 || $ts === '1') {
+            return true;
+        }
+
+        return (now()->getTimestamp() - (int) $ts) <= 6;
     }
 
     private function typingKey(int $matchId, int $userId): string

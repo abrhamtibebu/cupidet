@@ -165,6 +165,7 @@ export const api = {
     return request<{
       data: unknown[]
       settings?: { muted: boolean; upcoming_date?: unknown }
+      peer?: unknown
       peer_typing?: boolean
     }>(`/matches/${matchId}/messages${mark}`)
   },

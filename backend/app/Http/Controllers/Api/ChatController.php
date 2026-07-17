@@ -30,6 +30,7 @@ class ChatController extends Controller
         return response()->json([
             'data' => $chat->messages($user, $matchId, $markSeen),
             'settings' => $chat->settings($user, $matchId),
+            'peer' => $chat->peerCard($user, $matchId),
             // Piggyback typing so the client doesn't need a second poll every second.
             'peer_typing' => $chat->peerTyping($user, $matchId),
         ]);
