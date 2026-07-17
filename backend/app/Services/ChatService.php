@@ -446,7 +446,7 @@ class ChatService
         // Cache state so clients without a live websocket can poll it.
         $key = $this->typingKey($match->id, $user->id);
         if ($typing) {
-            Cache::put($key, true, now()->addSeconds(5));
+            Cache::put($key, true, now()->addSeconds(6));
         } else {
             Cache::forget($key);
         }

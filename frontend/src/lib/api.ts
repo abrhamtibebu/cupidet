@@ -162,9 +162,11 @@ export const api = {
     request<{ unread_messages: number; new_likes: number }>('/badges'),
   getMessages: (matchId: number, opts?: { markSeen?: boolean }) => {
     const mark = opts?.markSeen === false ? '?mark_seen=0' : ''
-    return request<{ data: unknown[]; settings?: { muted: boolean; upcoming_date?: unknown } }>(
-      `/matches/${matchId}/messages${mark}`,
-    )
+    return request<{
+      data: unknown[]
+      settings?: { muted: boolean; upcoming_date?: unknown }
+      peer_typing?: boolean
+    }>(`/matches/${matchId}/messages${mark}`)
   },
   sendMessage: (matchId: number, body: string) =>
     request<{ message: unknown }>(`/matches/${matchId}/messages`, {

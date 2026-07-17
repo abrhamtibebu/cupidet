@@ -25,10 +25,13 @@ class ChatController extends Controller
     {
         // Polling uses mark_seen=0 so we don't re-run delivered/read side-effects every 1–2s.
         $markSeen = ! $request->has('mark_seen') || $request->boolean('mark_seen');
+        $user = $request->user();
 
         return response()->json([
-            'data' => $chat->messages($request->user(), $matchId, $markSeen),
-            'settings' => $chat->settings($request->user(), $matchId),
+            'data' => $chat->messages($user, $matchId, $markSeen),
+            'settings' => $chat->settings($user, $matchId),
+            // Piggyback typing so the client doesn't need a second poll every second.
+            'peer_typing' => $chat->peerTyping($user, $matchId),
         ]);
     }
 

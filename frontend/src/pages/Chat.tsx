@@ -238,6 +238,15 @@ export function ChatPage() {
     const data = res.data as ChatMessage[]
     mergeServerMessages(data)
     applySettings(res.settings as ChatSettings | undefined)
+    if (typeof res.peer_typing === 'boolean') {
+      if (res.peer_typing) {
+        setPeerTyping(true)
+        if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
+        typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 4000)
+      } else {
+        setPeerTyping(false)
+      }
+    }
 
     // Lightweight seen sync without re-running mark on every poll payload.
     if (
@@ -267,16 +276,16 @@ export function ChatPage() {
   }
 
   const startTypingPulse = () => {
+    if (typingPulse.current) return
     emitTyping(true, true)
-    stopTypingPulse()
     typingPulse.current = window.setInterval(() => {
       if (inputFocused.current && bodyRef.current.trim()) {
         emitTyping(true, true)
       }
-    }, 1200)
+    }, 2000)
   }
 
-  // Always poll typing fast — websockets are unreliable on Render/Telegram.
+  // Backup typing poll (message poll already includes peer_typing).
   useEffect(() => {
     if (!id) return
     let active = true
@@ -296,7 +305,7 @@ export function ChatPage() {
       }
     }
     void check()
-    const timer = window.setInterval(() => void check(), 1000)
+    const timer = window.setInterval(() => void check(), 2000)
     return () => {
       active = false
       window.clearInterval(timer)
@@ -464,8 +473,7 @@ export function ChatPage() {
     setBody(value)
     if (!id) return
     if (value.trim()) {
-      if (!lastTypingSent.current) startTypingPulse()
-      else emitTyping(true)
+      startTypingPulse()
     } else {
       stopTypingPulse()
       emitTyping(false, true)

@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { api, getToken, setToken } from '../lib/api'
+import { ApiError, api, getToken, setToken } from '../lib/api'
 import { disconnectEcho } from '../lib/echo'
 import { AuthContext, restrictionFromMessage, type AccountRestriction } from '../lib/auth'
 import { getTelegramInitData, getTelegramStartParam, getTelegramUserUnsafe, isInsideTelegram } from '../lib/telegram'
 import type { User } from '../types'
+
+function isAuthFailure(err: unknown): boolean {
+  return err instanceof ApiError && (err.httpStatus === 401 || err.httpStatus === 403)
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -89,7 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.error(err)
-        setToken(null)
+        // Keep the token on transient failures (429 / timeout / 5xx) so chat polling
+        // doesn't wipe the session. Only clear on real auth / restriction failures.
+        if (isAuthFailure(err) || restrictionFromMessage(err instanceof Error ? err.message : '')) {
+          setToken(null)
+        }
         const restriction = restrictionFromMessage(err instanceof Error ? err.message : '')
         if (!cancelled && restriction) setAccountRestriction(restriction)
       } finally {
@@ -102,14 +110,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh, setSession, trackBroadcastOpenIfNeeded])
 
   useEffect(() => {
+    function clearSession(err?: unknown) {
+      setToken(null)
+      setUser(null)
+      setOnboardingComplete(false)
+      const restriction = restrictionFromMessage(err instanceof Error ? err.message : '')
+      if (restriction) setAccountRestriction(restriction)
+    }
+
     function syncRestricted() {
       if (!localStorage.getItem('cupid_token')) return
       void refresh().catch((err) => {
-        setToken(null)
-        setUser(null)
-        setOnboardingComplete(false)
-        const restriction = restrictionFromMessage(err instanceof Error ? err.message : '')
-        if (restriction) setAccountRestriction(restriction)
+        if (isAuthFailure(err) || restrictionFromMessage(err instanceof Error ? err.message : '')) {
+          clearSession(err)
+        }
       })
     }
 

@@ -57,52 +57,58 @@ Route::prefix('admin')->group(function () {
     });
 });
 
-Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
-    Route::get('/me', [AuthController::class, 'me']);
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::middleware('throttle:180,1')->group(function () {
+        Route::get('/me', [AuthController::class, 'me']);
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-    Route::middleware([EnsureUserActive::class])->group(function () {
-        Route::get('/profile', [ProfileController::class, 'show']);
-        Route::post('/profile', [ProfileController::class, 'store']);
-        Route::put('/profile', [ProfileController::class, 'update']);
-        Route::post('/profile/hide', [ProfileController::class, 'hide']);
-        Route::delete('/account', [ProfileController::class, 'destroy']);
-        Route::get('/interests', [ProfileController::class, 'interests']);
-        Route::get('/prompts', [ProfileController::class, 'promptsCatalog']);
+        Route::middleware([EnsureUserActive::class])->group(function () {
+            Route::get('/profile', [ProfileController::class, 'show']);
+            Route::post('/profile', [ProfileController::class, 'store']);
+            Route::put('/profile', [ProfileController::class, 'update']);
+            Route::post('/profile/hide', [ProfileController::class, 'hide']);
+            Route::delete('/account', [ProfileController::class, 'destroy']);
+            Route::get('/interests', [ProfileController::class, 'interests']);
+            Route::get('/prompts', [ProfileController::class, 'promptsCatalog']);
 
-        Route::post('/photos', [PhotoController::class, 'store']);
-        Route::put('/photos/{photo}/primary', [PhotoController::class, 'setPrimary']);
-        Route::delete('/photos/{photo}', [PhotoController::class, 'destroy']);
-        Route::post('/verification/selfie', [VerificationController::class, 'store'])->middleware('throttle:5,60');
+            Route::post('/photos', [PhotoController::class, 'store']);
+            Route::put('/photos/{photo}/primary', [PhotoController::class, 'setPrimary']);
+            Route::delete('/photos/{photo}', [PhotoController::class, 'destroy']);
+            Route::post('/verification/selfie', [VerificationController::class, 'store'])->middleware('throttle:5,60');
 
-        Route::get('/discover', [DiscoverController::class, 'index']);
-        Route::post('/like', [ActionController::class, 'like'])->middleware('throttle:60,1');
-        Route::post('/pass', [ActionController::class, 'pass'])->middleware('throttle:60,1');
-        Route::post('/rewind', [ActionController::class, 'rewind'])->middleware('throttle:30,1');
-        Route::get('/matches', [ActionController::class, 'matches']);
-        Route::get('/likes/received', [ActionController::class, 'likesReceived']);
+            Route::get('/discover', [DiscoverController::class, 'index']);
+            Route::post('/like', [ActionController::class, 'like'])->middleware('throttle:60,1');
+            Route::post('/pass', [ActionController::class, 'pass'])->middleware('throttle:60,1');
+            Route::post('/rewind', [ActionController::class, 'rewind'])->middleware('throttle:30,1');
+            Route::get('/matches', [ActionController::class, 'matches']);
+            Route::get('/likes/received', [ActionController::class, 'likesReceived']);
 
-        Route::get('/conversations', [ChatController::class, 'conversations']);
-        Route::get('/badges', [ChatController::class, 'badges']);
+            Route::get('/conversations', [ChatController::class, 'conversations']);
+            Route::get('/badges', [ChatController::class, 'badges']);
+            Route::get('/matches/{matchId}/settings', [ChatController::class, 'settings']);
+            Route::patch('/matches/{matchId}/settings', [ChatController::class, 'updateSettings']);
+            Route::post('/matches/{matchId}/dates', [ChatController::class, 'proposeDate'])->middleware('throttle:20,1');
+            Route::post('/matches/{matchId}/dates/{dateId}/respond', [ChatController::class, 'respondDate'])->middleware('throttle:30,1');
+            Route::delete('/matches/{matchId}', [ChatController::class, 'unmatch'])->middleware('throttle:10,1');
+
+            Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
+            Route::post('/broadcast-opens', [\App\Http\Controllers\Api\BroadcastOpenController::class, 'store'])->middleware('throttle:30,1');
+            Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:10,10');
+
+            Route::post('/report', [SafetyController::class, 'report'])->middleware('throttle:20,1');
+            Route::post('/block', [SafetyController::class, 'block']);
+            Route::delete('/block/{userId}', [SafetyController::class, 'unblock']);
+        });
+    });
+
+    // Separate rate-limit bucket for chat realtime polling (typing / messages / presence).
+    Route::middleware([EnsureUserActive::class, 'throttle:600,1'])->group(function () {
         Route::get('/matches/{matchId}/messages', [ChatController::class, 'index']);
-        Route::post('/matches/{matchId}/messages', [ChatController::class, 'store'])->middleware('throttle:120,1');
-        Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered'])->middleware('throttle:180,1');
-        Route::post('/matches/{matchId}/read', [ChatController::class, 'read'])->middleware('throttle:180,1');
-        Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing'])->middleware('throttle:180,1');
-        Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus'])->middleware('throttle:300,1');
-        Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
-        Route::get('/matches/{matchId}/settings', [ChatController::class, 'settings']);
-        Route::patch('/matches/{matchId}/settings', [ChatController::class, 'updateSettings']);
-        Route::post('/matches/{matchId}/dates', [ChatController::class, 'proposeDate'])->middleware('throttle:20,1');
-        Route::post('/matches/{matchId}/dates/{dateId}/respond', [ChatController::class, 'respondDate'])->middleware('throttle:30,1');
-        Route::delete('/matches/{matchId}', [ChatController::class, 'unmatch'])->middleware('throttle:10,1');
-
-        Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
-        Route::post('/broadcast-opens', [\App\Http\Controllers\Api\BroadcastOpenController::class, 'store'])->middleware('throttle:30,1');
-        Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:10,10');
-
-        Route::post('/report', [SafetyController::class, 'report'])->middleware('throttle:20,1');
-        Route::post('/block', [SafetyController::class, 'block']);
-        Route::delete('/block/{userId}', [SafetyController::class, 'unblock']);
+        Route::post('/matches/{matchId}/messages', [ChatController::class, 'store']);
+        Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered']);
+        Route::post('/matches/{matchId}/read', [ChatController::class, 'read']);
+        Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing']);
+        Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus']);
+        Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence']);
     });
 });
