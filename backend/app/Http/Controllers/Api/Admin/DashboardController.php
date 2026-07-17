@@ -331,8 +331,7 @@ class DashboardController extends Controller
 
                 return [
                     'name' => $name,
-                    // Private by design: admins can see that a message was sent, never its content.
-                    'preview' => '🔒 Private message',
+                    'preview' => str((string) $message->body)->limit(48)->toString(),
                     'time' => $message->created_at?->diffForHumans(),
                     'photo' => $user?->photo_url,
                 ];

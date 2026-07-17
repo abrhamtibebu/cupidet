@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, getToken, setToken } from '../lib/api'
 import { disconnectEcho } from '../lib/echo'
-import { syncE2eKeys } from '../lib/e2e'
 import { AuthContext, restrictionFromMessage, type AccountRestriction } from '../lib/auth'
 import { getTelegramInitData, getTelegramStartParam, getTelegramUserUnsafe, isInsideTelegram } from '../lib/telegram'
 import type { User } from '../types'
@@ -101,11 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [refresh, setSession, trackBroadcastOpenIfNeeded])
-
-  useEffect(() => {
-    // Publish this device's E2E public key so matches can encrypt to us.
-    if (user?.id) void syncE2eKeys()
-  }, [user?.id])
 
   useEffect(() => {
     function syncRestricted() {

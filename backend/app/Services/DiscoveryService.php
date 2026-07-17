@@ -340,7 +340,6 @@ class DiscoveryService
                 ]),
             'interests' => $user->interests->pluck('name'),
             'username' => $user->username,
-            'e2e_public_key' => $user->e2e_public_key,
             'compatibility_score' => $user->getAttribute('compatibility_score'),
             'distance_km' => $distance,
             'is_online' => $isOnline,

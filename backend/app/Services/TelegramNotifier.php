@@ -52,10 +52,7 @@ class TelegramNotifier
             return false;
         }
 
-        // E2E-encrypted bodies are ciphertext; never leak them into notifications.
-        $snippet = str_starts_with(trim($preview), 'enc1:')
-            ? 'sent you a message 💬'
-            : $this->escape(mb_strimwidth(trim($preview), 0, 120, '…'));
+        $snippet = $this->escape(mb_strimwidth(trim($preview), 0, 120, '…'));
 
         return $this->send(
             $recipient,

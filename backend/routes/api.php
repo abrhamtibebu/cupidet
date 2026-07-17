@@ -93,7 +93,6 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
 
         Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
-        Route::post('/e2e-key', [AuthController::class, 'updateE2eKey'])->middleware('throttle:30,1');
         Route::post('/broadcast-opens', [\App\Http\Controllers\Api\BroadcastOpenController::class, 'store'])->middleware('throttle:30,1');
         Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:10,10');
 

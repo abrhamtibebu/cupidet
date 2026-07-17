@@ -95,17 +95,6 @@ class AuthController extends Controller
         ]);
     }
 
-    public function updateE2eKey(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'public_key' => ['required', 'string', 'max:2000'],
-        ]);
-
-        $request->user()->forceFill(['e2e_public_key' => $data['public_key']])->save();
-
-        return response()->json(['ok' => true]);
-    }
-
     private function withVerification($user)
     {
         $this->loadVerification($user);

@@ -28,7 +28,6 @@ class User extends Authenticatable
         'notify_matches',
         'notify_likes',
         'notify_messages',
-        'e2e_public_key',
     ];
 
     protected $hidden = [

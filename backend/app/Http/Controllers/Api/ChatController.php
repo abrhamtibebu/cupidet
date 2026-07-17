@@ -31,8 +31,7 @@ class ChatController extends Controller
     public function store(Request $request, int $matchId, ChatService $chat): JsonResponse
     {
         $data = $request->validate([
-            // E2E-encrypted payloads (base64 envelope) are ~2.5x the plaintext size.
-            'body' => ['required', 'string', 'min:1', 'max:8000'],
+            'body' => ['required', 'string', 'min:1', 'max:2000'],
         ]);
 
         $message = $chat->send($request->user(), $matchId, $data['body']);
