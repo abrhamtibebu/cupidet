@@ -7,7 +7,7 @@ import { useNavBadges } from '../lib/navBadges'
 import { pollMs } from '../lib/perf'
 import type { ChatMessage, MatchItem } from '../types'
 import { BottomNav } from '../components/BottomNav'
-import { resolveMediaUrl } from '../lib/media'
+import { MediaImage } from '../components/MediaImage'
 
 function MessagesSkeleton() {
   return (
@@ -208,12 +208,12 @@ export function MessagesPage() {
                   onClick={() => navigate(`/chat/${match.id}`)}
                 >
                   <div className="relative">
-                    <img
-                      src={resolveMediaUrl(match.user.photo_url, 'https://i.pravatar.cc/100')}
+                    <MediaImage
+                      src={match.user.photo_url}
+                      fallbacks={match.user.photos?.map((p) => p.image_url)}
                       alt={match.user.name}
                       className="h-14 w-14 rounded-full object-cover ring-2 ring-lime/70"
                       loading="lazy"
-                      decoding="async"
                     />
                     {match.user.is_online && (
                       <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-black bg-[#22c55e]" />
@@ -236,12 +236,12 @@ export function MessagesPage() {
                   className="flex w-full items-center gap-3 rounded-2xl px-2 py-3 text-left hover:bg-panel"
                 >
                   <div className="relative">
-                    <img
-                      src={resolveMediaUrl(match.user.photo_url, 'https://i.pravatar.cc/100')}
+                    <MediaImage
+                      src={match.user.photo_url}
+                      fallbacks={match.user.photos?.map((p) => p.image_url)}
                       alt={match.user.name}
                       className="h-12 w-12 rounded-full object-cover"
                       loading="lazy"
-                      decoding="async"
                     />
                     {match.user.is_online && (
                       <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-black bg-[#22c55e]" />

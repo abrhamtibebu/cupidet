@@ -3,11 +3,11 @@ import imageCompression from 'browser-image-compression'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { resolveMediaUrl } from '../lib/media'
 import { getTelegramUserUnsafe, telegramHaptic } from '../lib/telegram'
 import { CitySelect } from '../components/CitySelect'
 import { BirthDateFields, isAtLeast18 } from '../components/BirthDateFields'
 import { datingPreferredGender } from '../components/AgeRangeSlider'
+import { MediaImage } from '../components/MediaImage'
 import { RELATIONSHIP_GOALS, isCasualGoal } from '../lib/profileOptions'
 
 const steps = ['About you', 'Photos']
@@ -30,8 +30,8 @@ function telegramPhotoUrl(user: {
   photo_url?: string | null
 } | null): string | null {
   const primary = user?.photos?.find((p) => p.is_primary) || user?.photos?.[0]
-  if (primary?.image_url) return resolveMediaUrl(primary.image_url)
-  if (user?.photo_url) return resolveMediaUrl(user.photo_url)
+  if (primary?.image_url) return primary.image_url
+  if (user?.photo_url) return user.photo_url
   return getTelegramUserUnsafe()?.photo_url || null
 }
 
@@ -203,8 +203,9 @@ export function OnboardingPage() {
               {(form.name || syncedPhoto) && (
                 <div className="mb-1 flex items-center gap-3 rounded-[22px] border border-lime/20 bg-panel px-3 py-3">
                   {syncedPhoto ? (
-                    <img
+                    <MediaImage
                       src={syncedPhoto}
+                      fallbacks={[user?.photo_url, getTelegramUserUnsafe()?.photo_url]}
                       alt=""
                       className="h-12 w-12 rounded-full object-cover ring-2 ring-lime/40"
                     />

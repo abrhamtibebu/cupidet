@@ -162,13 +162,14 @@ class TelegramAuthService
 
         $user = User::query()->updateOrCreate(
             ['telegram_id' => $telegramUser['id']],
-            [
+            array_filter([
                 'username' => $telegramUser['username'] ?? null,
                 'first_name' => $telegramUser['first_name'] ?? null,
                 'last_name' => $telegramUser['last_name'] ?? null,
-                'photo_url' => $telegramUser['photo_url'] ?? null,
+                // Only set when Telegram sends a real CDN URL — never wipe on omit
+                'photo_url' => $this->safeClientPhotoUrl($telegramUser['photo_url'] ?? null),
                 'last_active' => now(),
-            ]
+            ], fn ($value, $key) => $key === 'last_active' || $value !== null, ARRAY_FILTER_USE_BOTH)
         );
 
         if (in_array($user->status, ['suspended', 'banned'], true)) {
@@ -248,52 +249,65 @@ class TelegramAuthService
             return;
         }
 
-        // Prefer Telegram CDN URL from Mini App (renders without our storage)
-        $photoUrl = $telegramUser['photo_url'] ?? null;
-        if (! is_string($photoUrl) || $photoUrl === '') {
-            $photoUrl = is_string($user->photo_url) && str_starts_with($user->photo_url, 'http')
-                && ! str_contains($user->photo_url, '/storage/')
-                ? $user->photo_url
-                : null;
-        }
-        if (! $photoUrl) {
-            $photoUrl = $this->fetchTelegramProfilePhotoUrl((int) ($telegramUser['id'] ?? $user->telegram_id));
+        // Prefer Telegram CDN URL from Mini App (durable without our disk)
+        $cdnUrl = $this->safeClientPhotoUrl($telegramUser['photo_url'] ?? null);
+        if (! $cdnUrl) {
+            $cdnUrl = $this->safeClientPhotoUrl($user->photo_url);
         }
 
-        if (! $photoUrl) {
+        // Bot API file URL is only for server-side download — never store as client photo_url
+        $downloadUrl = $cdnUrl;
+        if (! $downloadUrl) {
+            $downloadUrl = $this->fetchTelegramProfilePhotoUrl((int) ($telegramUser['id'] ?? $user->telegram_id));
+        }
+
+        if (! $downloadUrl) {
             return;
         }
 
-        // Always keep CDN/remote URL on the user for reliable client rendering
-        $user->forceFill(['photo_url' => $photoUrl])->save();
+        if ($cdnUrl) {
+            $user->forceFill(['photo_url' => $cdnUrl])->save();
+        }
 
-        // Prefer downloading into app storage so discover stays stable offline of Telegram CDN
-        $stored = $this->downloadRemotePhoto($user, $photoUrl);
+        // Cache on disk when possible; keep CDN as canonical image_url on ephemeral public disk
+        $stored = $this->downloadRemotePhoto($user, $downloadUrl);
 
         if ($stored) {
             $user->photos()->whereNull('path')->delete();
             $photo = $user->photos()->where('path', $stored['path'])->first();
+            $imageUrl = $cdnUrl ?: $stored['url'];
+
             if ($photo) {
                 $photo->update([
-                    'image_url' => $stored['url'],
+                    'image_url' => $imageUrl,
                     'status' => config('cupid.auto_approve_photos', true) ? 'approved' : $photo->status,
                 ]);
             } else {
                 $user->photos()->update(['is_primary' => false]);
-                $user->photos()->create([
-                    'image_url' => $stored['url'],
+                $photo = $user->photos()->create([
+                    'image_url' => $imageUrl,
                     'path' => $stored['path'],
                     'is_primary' => true,
                     'status' => config('cupid.auto_approve_photos', true) ? 'approved' : 'pending',
                 ]);
             }
 
+            // Point at media proxy when we only have a local cache (no CDN)
+            // or R2 without a public bucket URL
+            if (! $cdnUrl && ($disk === 'public' || ! config("filesystems.disks.{$disk}.url"))) {
+                $photo->update(['image_url' => url('/api/media/photos/'.$photo->id)]);
+            }
+
             return;
         }
 
-        // Download failed — still show the Telegram CDN photo
+        // Download failed — still show Telegram CDN if we have one
+        if (! $cdnUrl) {
+            return;
+        }
+
         $user->photos()->whereNull('path')->delete();
-        $existing = $user->photos()->where('image_url', $photoUrl)->first();
+        $existing = $user->photos()->where('image_url', $cdnUrl)->first();
         if ($existing) {
             $user->photos()->where('id', '!=', $existing->id)->update(['is_primary' => false]);
             $existing->update(['is_primary' => true, 'status' => 'approved']);
@@ -303,11 +317,27 @@ class TelegramAuthService
 
         $user->photos()->update(['is_primary' => false]);
         $user->photos()->create([
-            'image_url' => $photoUrl,
+            'image_url' => $cdnUrl,
             'path' => null,
             'is_primary' => true,
             'status' => 'approved',
         ]);
+    }
+
+    /** CDN / HTTPS URLs safe to send to Mini App clients (never bot-token file URLs). */
+    private function safeClientPhotoUrl(mixed $url): ?string
+    {
+        if (! is_string($url) || $url === '' || ! str_starts_with($url, 'http')) {
+            return null;
+        }
+        if (str_contains($url, '/storage/')) {
+            return null;
+        }
+        if (str_contains($url, 'api.telegram.org') && str_contains($url, '/file/bot')) {
+            return null;
+        }
+
+        return $url;
     }
 
     private function fetchTelegramProfilePhotoUrl(int $telegramId): ?string

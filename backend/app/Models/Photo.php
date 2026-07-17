@@ -30,8 +30,8 @@ class Photo extends Model
     }
 
     /**
-     * Rebuild public URLs from the current APP_URL / disk when the file exists.
-     * If the file was lost (ephemeral Render disk), fall back to the Telegram CDN URL on the user.
+     * Prefer a file that still exists on disk; otherwise a durable CDN URL.
+     * Never emit a dead /storage path or a Telegram bot-token file URL.
      */
     protected function imageUrl(): Attribute
     {
@@ -41,22 +41,61 @@ class Photo extends Model
                 try {
                     if (Storage::disk($disk)->exists($this->path)) {
                         if ($disk === 's3' || $disk === 'r2') {
+                            // Without a public bucket URL, serve through our media proxy
+                            if (! config("filesystems.disks.{$disk}.url")) {
+                                return url('/api/media/photos/'.$this->id);
+                            }
+
                             return Storage::disk($disk)->url($this->path);
                         }
 
                         return Storage::disk('public')->url($this->path);
                     }
                 } catch (\Throwable) {
-                    // fall through
-                }
-
-                $fallback = $this->user?->photo_url;
-                if (is_string($fallback) && str_starts_with($fallback, 'http')) {
-                    return $fallback;
+                    // fall through to durable fallbacks
                 }
             }
 
-            return $value;
+            $candidates = [
+                $this->user?->photo_url,
+                $value,
+            ];
+
+            foreach ($candidates as $candidate) {
+                if ($this->isDurablePublicUrl($candidate)) {
+                    return $candidate;
+                }
+            }
+
+            // Proxy can stream from disk, redirect to CDN, or re-fetch Telegram
+            if ($this->id) {
+                return url('/api/media/photos/'.$this->id);
+            }
+
+            return null;
         });
+    }
+
+    private function isDurablePublicUrl(?string $url): bool
+    {
+        if (! is_string($url) || $url === '' || ! str_starts_with($url, 'http')) {
+            return false;
+        }
+
+        if (str_contains($url, '/storage/')) {
+            return false;
+        }
+
+        // Self-referential media proxy is not a durable CDN source
+        if (str_contains($url, '/api/media/photos/')) {
+            return false;
+        }
+
+        // Bot-token file URLs expire and leak the token — never expose to clients
+        if (str_contains($url, 'api.telegram.org') && str_contains($url, '/file/bot')) {
+            return false;
+        }
+
+        return true;
     }
 }

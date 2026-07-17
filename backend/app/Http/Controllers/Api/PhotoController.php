@@ -35,6 +35,20 @@ class PhotoController extends Controller
             'status' => config('cupid.auto_approve_photos') ? 'approved' : 'pending',
         ]);
 
+        if ($makePrimary) {
+            $user->forceFill(['photo_url' => $url])->save();
+        }
+
+        // On ephemeral local disk (or R2 without a public URL), prefer the media proxy
+        // so clients always have a reachable, stable URL.
+        if ($this->disk() === 'public' || ! config('filesystems.disks.'.$this->disk().'.url')) {
+            $photo->update(['image_url' => url('/api/media/photos/'.$photo->id)]);
+            if ($makePrimary) {
+                $user->forceFill(['photo_url' => url('/api/media/photos/'.$photo->id)])->save();
+            }
+            $photo = $photo->fresh();
+        }
+
         return response()->json(['photo' => $photo], 201);
     }
 
@@ -44,6 +58,7 @@ class PhotoController extends Controller
 
         $request->user()->photos()->update(['is_primary' => false]);
         $photo->update(['is_primary' => true]);
+        $request->user()->forceFill(['photo_url' => $photo->image_url])->save();
 
         return response()->json(['photo' => $photo->fresh()]);
     }

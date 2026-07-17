@@ -11,7 +11,7 @@ import { FiltersSheet, type FilterState } from '../components/FiltersSheet'
 import { BottomNav } from '../components/BottomNav'
 import { IconFilters } from '../components/Icons'
 import { telegramHaptic } from '../lib/telegram'
-import { resolveMediaUrl } from '../lib/media'
+import { MediaImage } from '../components/MediaImage'
 
 type Tab = 'all' | 'online' | 'location'
 
@@ -231,14 +231,11 @@ export function DiscoverPage() {
                 animate={{ scale: 0.965, opacity: 0.85, y: 10 }}
                 transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
-                <img
-                  src={resolveMediaUrl(
-                    filtered[1].photos?.[0]?.image_url || filtered[1].photo_url,
-                    'https://i.pravatar.cc/800?u=next',
-                  )}
+                <MediaImage
+                  src={filtered[1].photos?.[0]?.image_url || filtered[1].photo_url}
+                  fallbacks={[filtered[1].photo_url]}
                   alt=""
                   className="h-full w-full object-cover"
-                  decoding="async"
                 />
                 <div className="absolute inset-0 bg-black/25" />
               </motion.div>

@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { resolveMediaUrl } from '../lib/media'
 import { telegramHaptic } from '../lib/telegram'
 import { BottomNav } from '../components/BottomNav'
 import { IconSettings } from '../components/Icons'
 import { CitySelect } from '../components/CitySelect'
 import { LoadingButton, Spinner } from '../components/Loading'
+import { MediaImage } from '../components/MediaImage'
 import { SelfieCaptureModal } from '../components/SelfieCaptureModal'
 import { AgeRangeSlider, datingPreferredGender } from '../components/AgeRangeSlider'
 import {
@@ -28,8 +28,8 @@ import {
 import { profileCompleteness } from '../lib/profileCompleteness'
 import type { Interest, Photo, ProfilePrompt } from '../types'
 
-function photoSrc(photo?: Photo | null, fallback?: string | null) {
-  return resolveMediaUrl(photo?.image_url || fallback, 'https://i.pravatar.cc/800?u=me')
+function photoFallbacks(photo?: Photo | null, fallback?: string | null): Array<string | null | undefined> {
+  return [fallback, photo?.image_url]
 }
 
 function ageFromBirthDate(iso?: string | null): number | null {
@@ -462,8 +462,9 @@ export function ProfilePage() {
       {/* Hero identity — full width (avoid aspect-ratio + max-height shrinking width) */}
       <section className="relative w-full min-w-0 overflow-hidden rounded-[28px]">
         <div className="relative h-[min(58dvh,520px)] w-full">
-          <img
-            src={photoSrc(primary, user?.photo_url)}
+          <MediaImage
+            src={primary?.image_url || user?.photo_url}
+            fallbacks={photoFallbacks(primary, user?.photo_url)}
             alt={user?.profile?.name || 'You'}
             className="absolute inset-0 h-full w-full object-cover object-center"
           />
@@ -561,8 +562,9 @@ export function ProfilePage() {
             const busy = busyPhotoId === photo.id
             return (
               <div key={photo.id} className="relative overflow-hidden rounded-[18px] bg-panel-2">
-                <img
-                  src={resolveMediaUrl(photo.image_url)}
+                <MediaImage
+                  src={photo.image_url}
+                  fallbacks={[user?.photo_url]}
                   alt=""
                   className={`aspect-square w-full object-cover transition ${busy ? 'opacity-40' : ''}`}
                 />
