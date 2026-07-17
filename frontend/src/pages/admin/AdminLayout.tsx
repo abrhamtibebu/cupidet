@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { BrandLogo } from '../../components/Brand'
 import { useAdminAuth } from '../../lib/adminAuth'
 
 const NAV = [
@@ -47,7 +48,7 @@ export function AdminLayout() {
     <div className="admin-shell">
       <aside className={`admin-sidebar ${open ? 'is-open' : ''}`}>
         <div className="admin-brand">
-          <img src="/mingle_251_icon.png" alt="" className="admin-brand-dot" width={36} height={36} />
+          <BrandLogo size="sm" className="admin-brand-dot shrink-0" />
           <span>
             <span className="admin-brand-name">Mingle 251</span>
             <span className="admin-brand-sub">Admin</span>

@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useState, type ReactNode } from 'react'
 import { AuthProvider } from './components/AuthProvider'
-import { BrandIcon, BRAND_NAME } from './components/Brand'
+import { BrandLogo, BRAND_NAME } from './components/Brand'
 import { TelegramBackButton } from './components/TelegramBackButton'
 import { useAuth } from './lib/auth'
 import { NavBadgeProvider } from './lib/navBadges'
@@ -47,8 +47,8 @@ function Gate() {
   if (loading) {
     return (
       <div className="app-shell grid min-h-[100dvh] place-items-center">
-        <div className="text-center">
-          <BrandIcon size="splash" className="brand-breathe mx-auto mb-6 drop-shadow-[0_12px_40px_rgba(223,252,1,0.18)]" />
+        <div className="brand-loading-glow text-center">
+          <BrandLogo size="splash" animated className="brand-logo-animated mx-auto mb-6" />
           <p className="text-sm text-muted">Opening {BRAND_NAME}…</p>
         </div>
       </div>

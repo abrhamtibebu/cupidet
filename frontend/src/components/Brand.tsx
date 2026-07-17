@@ -1,55 +1,58 @@
-type Size = 'sm' | 'md' | 'lg' | 'hero' | 'splash'
+import { MingleLogo } from './MingleLogo'
 
-const iconSize: Record<Size, string> = {
-  sm: 'h-8 w-8',
-  md: 'h-12 w-12',
-  lg: 'h-16 w-16',
-  hero: 'h-24 w-24',
-  splash: 'h-40 w-40 sm:h-48 sm:w-48',
+export type BrandSize = 'sm' | 'md' | 'lg' | 'hero' | 'splash'
+
+const logoSize: Record<BrandSize, string> = {
+  sm: 'h-7 w-auto',
+  md: 'h-10 w-auto',
+  lg: 'h-14 w-auto',
+  hero: 'h-20 w-auto',
+  splash: 'h-28 w-auto sm:h-36',
 }
 
-const logoSize: Record<Size, string> = {
-  sm: 'h-8',
-  md: 'h-12',
-  lg: 'h-16',
-  hero: 'h-28',
-  splash: 'h-36 sm:h-44',
+const markSize: Record<BrandSize, string> = {
+  sm: 'h-8 w-auto',
+  md: 'h-10 w-auto',
+  lg: 'h-14 w-auto',
+  hero: 'h-20 w-auto',
+  splash: 'h-24 w-auto sm:h-28',
 }
 
 export const BRAND_NAME = 'Mingle 251'
 
-/** Compact mark for loading screens, nav chips, and favicons. */
+/** Pink heart mark from the wordmark. */
 export function BrandIcon({
   size = 'md',
   className = '',
+  animated = false,
 }: {
-  size?: Size
+  size?: BrandSize
   className?: string
+  animated?: boolean
 }) {
   return (
-    <img
-      src="/mingle_251_icon.png"
-      alt={BRAND_NAME}
-      className={`${iconSize[size]} object-contain ${className}`}
-      draggable={false}
+    <MingleLogo
+      markOnly
+      animated={animated}
+      className={`${markSize[size]} ${className}`}
     />
   )
 }
 
-/** Primary wordmark / full logo. */
+/** Full Mingle 251 wordmark SVG. */
 export function BrandLogo({
   size = 'md',
   className = '',
+  animated = false,
 }: {
-  size?: Size
+  size?: BrandSize
   className?: string
+  animated?: boolean
 }) {
   return (
-    <img
-      src="/mingle_251_logo.png"
-      alt={BRAND_NAME}
-      className={`${logoSize[size]} w-auto max-w-full object-contain ${className}`}
-      draggable={false}
+    <MingleLogo
+      animated={animated}
+      className={`${logoSize[size]} ${className}`}
     />
   )
 }

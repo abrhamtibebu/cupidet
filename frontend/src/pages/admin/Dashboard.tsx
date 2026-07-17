@@ -180,7 +180,7 @@ export function AdminDashboardPage() {
           {(locations?.locations || []).slice(0, 6).map((loc) => (
             <div key={loc.name} className="admin-loc">
               <div>
-                <span className="admin-dot" style={{ background: loc.color || '#dffc01' }} />
+                <span className="admin-dot" style={{ background: loc.color || '#fe3461' }} />
                 <span>{loc.name}</span>
               </div>
               <strong>{loc.count}</strong>

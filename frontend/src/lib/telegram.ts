@@ -114,7 +114,7 @@ export function initTelegram(): boolean {
       }
 
       // Align Telegram chrome with Mingle 251 brand
-      if (miniApp.setHeaderColor.isAvailable()) miniApp.setHeaderColor('#0b0b0b')
+      if (miniApp.setHeaderColor.isAvailable()) miniApp.setHeaderColor('#000000')
       if (miniApp.setBackgroundColor.isAvailable()) miniApp.setBackgroundColor('#000000')
       if (miniApp.setBottomBarColor.isAvailable()) miniApp.setBottomBarColor('#000000')
 

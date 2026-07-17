@@ -5,11 +5,14 @@
   --color-ink: #000000;
   --color-panel: #121212;
   --color-panel-2: #1e1e1e;
-  --color-lime: #dffc01;
-  --color-lime-dark: #c5e000;
-  --color-muted: #9a9a9a;
-  --color-heart: #ff4d6d;
-  --color-heart-deep: #e11d48;
+  --color-brand: #fe3461;
+  --color-brand-dark: #d92a52;
+  --color-brand-muted: #79797a;
+  --color-lime: #fe3461;
+  --color-lime-dark: #d92a52;
+  --color-muted: #79797a;
+  --color-heart: #fe3461;
+  --color-heart-deep: #d92a52;
   --font-sans: "DM Sans", "Segoe UI", sans-serif;
   --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
 }
@@ -39,7 +42,7 @@
 /* Elegant thin scrollbars (Firefox + WebKit) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(223, 252, 1, 0.35) transparent;
+  scrollbar-color: rgba(254, 52, 97, 0.35) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -59,7 +62,7 @@
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(223, 252, 1, 0.55);
+  background: rgba(254, 52, 97, 0.55);
   border: 1px solid transparent;
   background-clip: padding-box;
 }
@@ -460,22 +463,64 @@ textarea {
   }
 }
 
-@keyframes brand-breathe {
+@keyframes brand-heart-pulse {
   0%,
   100% {
-    transform: scale(0.92);
-    opacity: 0.78;
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 transparent);
   }
   50% {
-    transform: scale(1.06);
+    transform: scale(1.14);
+    filter: drop-shadow(0 0 14px rgba(254, 52, 97, 0.75));
+  }
+}
+
+@keyframes brand-type-fade {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
     opacity: 1;
   }
 }
 
-.brand-breathe {
-  animation: brand-breathe 1.6s ease-in-out infinite;
+@keyframes brand-logo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.brand-logo-heart {
+  transform-origin: 185px 90px;
+  animation: brand-heart-pulse 1.35s ease-in-out infinite;
+}
+
+.brand-logo-type {
+  animation: brand-type-fade 1.35s ease-in-out infinite;
+}
+
+.brand-logo-animated {
+  animation: brand-logo-float 2.2s ease-in-out infinite;
   transform-origin: center center;
-  will-change: transform, opacity;
+  will-change: transform;
+}
+
+.brand-loading-glow {
+  position: relative;
+}
+
+.brand-loading-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2rem -3rem auto;
+  height: 12rem;
+  background: radial-gradient(ellipse at center, rgba(254, 52, 97, 0.22), transparent 70%);
+  pointer-events: none;
 }
 
 

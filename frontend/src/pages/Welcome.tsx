@@ -47,7 +47,7 @@ function BrushHeart({ progress }: { progress: number }) {
         className="pointer-events-none absolute inset-0 opacity-[0.07]"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 20% 30%, #ff4d6d 0.6px, transparent 0.7px), radial-gradient(circle at 70% 60%, #fff 0.5px, transparent 0.6px)',
+            'radial-gradient(circle at 20% 30%, #fe3461 0.6px, transparent 0.7px), radial-gradient(circle at 70% 60%, #fff 0.5px, transparent 0.6px)',
           backgroundSize: '14px 14px, 18px 18px',
         }}
       />
@@ -74,7 +74,7 @@ function BrushHeart({ progress }: { progress: number }) {
         <motion.path
           d={HEART_PATH}
           fill="none"
-          stroke="#ff4d6d"
+          stroke="#fe3461"
           strokeWidth="6.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -124,7 +124,7 @@ export function WelcomeScreen({ onStart }: Props) {
   return (
     <div className="app-shell relative flex min-h-[100dvh] flex-col overflow-hidden pb-8">
       {/* Soft sketch backdrop */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(223,252,1,0.08),_transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(254,52,97,0.12),_transparent_55%)]" />
 
       <header className="relative z-10 flex items-center justify-between pt-2">
         <BrandLogo size="sm" className="opacity-90" />

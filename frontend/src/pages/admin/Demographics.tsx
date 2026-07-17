@@ -13,7 +13,7 @@ function BreakdownList({ title, subtitle, rows }: { title: string; subtitle: str
         <div key={row.name}>
           <div className="admin-loc">
             <div>
-              <span className="admin-dot" style={{ background: row.color || '#dffc01' }} />
+              <span className="admin-dot" style={{ background: row.color || '#fe3461' }} />
               <span>{row.name}</span>
             </div>
             <div className="admin-loc-meta">
@@ -23,7 +23,7 @@ function BreakdownList({ title, subtitle, rows }: { title: string; subtitle: str
           </div>
           {typeof row.percent === 'number' ? (
             <div className="admin-bar">
-              <span style={{ width: `${Math.min(100, row.percent)}%`, background: row.color || '#dffc01' }} />
+              <span style={{ width: `${Math.min(100, row.percent)}%`, background: row.color || '#fe3461' }} />
             </div>
           ) : null}
         </div>

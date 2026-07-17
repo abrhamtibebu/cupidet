@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { BrandLogo } from '../../components/Brand'
 import { useAdminAuth } from '../../lib/adminAuth'
 
 export function AdminLoginPage() {
@@ -30,7 +31,7 @@ export function AdminLoginPage() {
     <div className="admin-login">
       <form className="admin-login-card" onSubmit={onSubmit}>
         <div className="admin-brand admin-brand-login">
-          <img src="/mingle_251_icon.png" alt="" className="admin-brand-dot" width={40} height={40} />
+          <BrandLogo size="sm" className="admin-brand-dot shrink-0" />
           <span>
             <span className="admin-brand-name">Mingle 251</span>
             <span className="admin-brand-sub">Admin console</span>
