@@ -55,11 +55,19 @@ php artisan queue:work
 
 Users can toggle Matches / Likes / Messages under Settings in the app.
 
+## Group broadcast (admin)
+
+1. Re-set the webhook so `my_chat_member` is included (see `bot/set-webhook.sh`).
+2. Add the bot to each group (or remove + re-add if it was already there) so the chat id is stored.
+3. Open Filament → **Telegram → Broadcast**, compose a message, send to all active groups (or one group).
+
+Broadcasts are queued — production needs `queue:work` running (started from `entrypoint.sh`).
+
 ## Commands
 
 | Command | Behavior |
 |---------|----------|
-| `/start` | Welcome message + **Open Cupid ET** Web App button |
+| `/start` | Welcome message + **Open Mingle 251** Web App button |
 | `/profile` | Opens Mini App |
 | `/settings` | Opens Mini App |
 | `/help` | Help text |
@@ -67,7 +75,10 @@ Users can toggle Matches / Likes / Messages under Settings in the app.
 ## Webhook (production)
 
 ```bash
+./bot/set-webhook.sh https://cupidet.onrender.com
+# or:
 curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
   -d "url=https://YOUR_API_HOST/api/telegram/webhook" \
+  -d 'allowed_updates=["message","edited_message","my_chat_member"]' \
   -d "secret_token=$TELEGRAM_WEBHOOK_SECRET"
 ```

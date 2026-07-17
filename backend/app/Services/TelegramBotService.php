@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\TelegramGroup;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
@@ -23,26 +24,97 @@ class TelegramBotService
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => 'HTML',
+            'disable_web_page_preview' => false,
         ];
 
         if ($replyMarkup) {
             $payload['reply_markup'] = $replyMarkup;
         }
 
+        return $this->postTelegram('sendMessage', $payload);
+    }
+
+    /**
+     * @param  string  $photoAbsolutePath  Local filesystem path to the image
+     */
+    public function sendPhoto(
+        int|string $chatId,
+        string $photoAbsolutePath,
+        ?string $caption = null,
+        ?array $replyMarkup = null,
+    ): bool {
+        $token = config('services.telegram.bot_token');
+        if (! $token) {
+            Log::warning('Telegram bot token missing; skip photo', compact('chatId'));
+
+            return false;
+        }
+
+        if (! is_readable($photoAbsolutePath)) {
+            Log::error('Telegram sendPhoto: file not readable', ['path' => $photoAbsolutePath]);
+
+            return false;
+        }
+
         try {
-            // Local Windows often hits SSL MITM (antivirus); skip verify in local only.
+            $pending = Http::timeout(60)->attach(
+                'photo',
+                file_get_contents($photoAbsolutePath),
+                basename($photoAbsolutePath),
+            );
+            if (app()->environment('local')) {
+                $pending = $pending->withoutVerifying();
+            }
+
+            $payload = [
+                'chat_id' => $chatId,
+                'parse_mode' => 'HTML',
+            ];
+            if ($caption !== null && $caption !== '') {
+                // Telegram caption limit
+                $payload['caption'] = mb_substr($caption, 0, 1024);
+            }
+            if ($replyMarkup) {
+                $payload['reply_markup'] = json_encode($replyMarkup, JSON_UNESCAPED_UNICODE);
+            }
+
+            $response = $pending->post("https://api.telegram.org/bot{$token}/sendPhoto", $payload);
+            $response->throw();
+
+            return true;
+        } catch (RequestException|ConnectionException|Throwable $e) {
+            Log::error('Telegram sendPhoto failed', [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function postTelegram(string $method, array $payload): bool
+    {
+        $token = config('services.telegram.bot_token');
+        if (! $token) {
+            return false;
+        }
+
+        try {
             $pending = Http::timeout(15);
             if (app()->environment('local')) {
                 $pending = $pending->withoutVerifying();
             }
 
-            $response = $pending->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            $response = $pending->post("https://api.telegram.org/bot{$token}/{$method}", $payload);
             $response->throw();
 
             return true;
         } catch (RequestException|ConnectionException|Throwable $e) {
-            Log::error('Telegram sendMessage failed', [
-                'chat_id' => $chatId,
+            Log::error("Telegram {$method} failed", [
+                'chat_id' => $payload['chat_id'] ?? null,
                 'error' => $e->getMessage(),
             ]);
 
@@ -68,14 +140,56 @@ class TelegramBotService
         ];
     }
 
+    /** URL button safe for groups (web_app buttons only work in private chats). */
+    public function miniAppLinkKeyboard(string $text = 'Open Mingle 251'): array
+    {
+        $bot = ltrim((string) config('services.telegram.bot_username', ''), '@');
+        $url = $bot !== ''
+            ? "https://t.me/{$bot}?startapp"
+            : rtrim((string) config('services.telegram.mini_app_url'), '/').'/';
+
+        if ($url === '/' || str_contains($url, 'trycloudflare.com') || str_contains($url, 'localhost')) {
+            $url = 'https://mingle-251.onrender.com/';
+        }
+
+        return [
+            'inline_keyboard' => [[
+                [
+                    'text' => $text,
+                    'url' => $url,
+                ],
+            ]],
+        ];
+    }
+
     public function handleUpdate(array $update): void
     {
-        $message = $update['message'] ?? null;
+        if (isset($update['my_chat_member'])) {
+            $this->handleMyChatMember($update['my_chat_member']);
+
+            return;
+        }
+
+        $message = $update['message'] ?? $update['edited_message'] ?? null;
         if (! $message) {
             return;
         }
 
-        $chatId = $message['chat']['id'] ?? null;
+        $chat = $message['chat'] ?? [];
+        $chatType = (string) ($chat['type'] ?? '');
+
+        // Discover / refresh groups silently (do not auto-reply in groups)
+        if (in_array($chatType, ['group', 'supergroup'], true)) {
+            $this->upsertGroupFromChat($chat, active: true);
+
+            return;
+        }
+
+        if ($chatType !== 'private') {
+            return;
+        }
+
+        $chatId = $chat['id'] ?? null;
         $text = trim((string) ($message['text'] ?? ''));
         if (! $chatId || $text === '') {
             return;
@@ -110,5 +224,58 @@ class TelegramBotService
                 $this->webAppKeyboard()
             ),
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $myChatMember
+     */
+    private function handleMyChatMember(array $myChatMember): void
+    {
+        $chat = $myChatMember['chat'] ?? [];
+        $chatType = (string) ($chat['type'] ?? '');
+
+        if (! in_array($chatType, ['group', 'supergroup'], true)) {
+            return;
+        }
+
+        $newStatus = (string) ($myChatMember['new_chat_member']['status'] ?? '');
+        $active = in_array($newStatus, ['member', 'administrator', 'restricted'], true);
+
+        $this->upsertGroupFromChat($chat, $active);
+    }
+
+    /**
+     * @param  array<string, mixed>  $chat
+     */
+    public function upsertGroupFromChat(array $chat, bool $active): void
+    {
+        $chatId = $chat['id'] ?? null;
+        if ($chatId === null) {
+            return;
+        }
+
+        $attrs = [
+            'title' => isset($chat['title']) ? (string) $chat['title'] : null,
+            'type' => (string) ($chat['type'] ?? 'group'),
+            'username' => isset($chat['username']) ? (string) $chat['username'] : null,
+            'is_active' => $active,
+        ];
+
+        if ($active) {
+            $attrs['joined_at'] = now();
+            $attrs['left_at'] = null;
+        } else {
+            $attrs['left_at'] = now();
+        }
+
+        $group = TelegramGroup::query()->firstOrNew(['chat_id' => (int) $chatId]);
+
+        // Don't overwrite joined_at on every message refresh while still active
+        if ($group->exists && $active && $group->is_active) {
+            unset($attrs['joined_at']);
+        }
+
+        $group->fill($attrs);
+        $group->save();
     }
 }
