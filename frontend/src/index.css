@@ -463,64 +463,84 @@ textarea {
   }
 }
 
-@keyframes brand-heart-pulse {
+@keyframes brand-heart-beat {
   0%,
   100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 0 transparent);
   }
-  50% {
-    transform: scale(1.14);
-    filter: drop-shadow(0 0 14px rgba(254, 52, 97, 0.75));
+  18% {
+    transform: scale(1.07);
+  }
+  36% {
+    transform: scale(1);
+  }
+  54% {
+    transform: scale(1.04);
+  }
+  72% {
+    transform: scale(1);
   }
 }
 
-@keyframes brand-type-fade {
+@keyframes brand-type-breathe {
   0%,
   100% {
-    opacity: 0.72;
+    opacity: 0.86;
   }
   50% {
     opacity: 1;
   }
 }
 
-@keyframes brand-logo-float {
+@keyframes brand-loading-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes brand-loading-text {
   0%,
   100% {
-    transform: translateY(0);
+    opacity: 0.55;
   }
   50% {
-    transform: translateY(-4px);
+    opacity: 0.95;
   }
 }
 
 .brand-logo-heart {
   transform-origin: 185px 90px;
-  animation: brand-heart-pulse 1.35s ease-in-out infinite;
+  animation: brand-heart-beat 2.4s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
 
 .brand-logo-type {
-  animation: brand-type-fade 1.35s ease-in-out infinite;
+  animation: brand-type-breathe 2.8s ease-in-out infinite;
 }
 
-.brand-logo-animated {
-  animation: brand-logo-float 2.2s ease-in-out infinite;
-  transform-origin: center center;
-  will-change: transform;
+.brand-loading-text {
+  animation: brand-loading-text 2.4s ease-in-out infinite;
 }
 
-.brand-loading-glow {
-  position: relative;
+.brand-loading-bar {
+  width: 3.5rem;
+  height: 2px;
+  margin: 1.75rem auto 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
 }
 
-.brand-loading-glow::before {
+.brand-loading-bar::after {
   content: '';
-  position: absolute;
-  inset: -2rem -3rem auto;
-  height: 12rem;
-  background: radial-gradient(ellipse at center, rgba(254, 52, 97, 0.22), transparent 70%);
-  pointer-events: none;
+  display: block;
+  width: 45%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+  animation: brand-loading-slide 1.5s cubic-bezier(0.45, 0, 0.25, 1) infinite;
 }
 
 

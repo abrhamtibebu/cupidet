@@ -47,9 +47,12 @@ function Gate() {
   if (loading) {
     return (
       <div className="app-shell grid min-h-[100dvh] place-items-center">
-        <div className="brand-loading-glow text-center">
-          <BrandLogo size="splash" animated className="brand-logo-animated mx-auto mb-6" />
-          <p className="text-sm text-muted">Opening {BRAND_NAME}…</p>
+        <div className="text-center">
+          <BrandLogo size="splash" animated className="mx-auto mb-8" />
+          <p className="brand-loading-text text-sm tracking-[0.12em] text-muted uppercase">
+            Opening {BRAND_NAME}…
+          </p>
+          <div className="brand-loading-bar" aria-hidden />
         </div>
       </div>
     )
