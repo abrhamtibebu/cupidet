@@ -226,7 +226,7 @@ export function DiscoverPage() {
             {filtered[1] && (
               <motion.div
                 key={`next-${filtered[1].id}`}
-                className="discover-card pointer-events-none absolute inset-0 z-0 will-change-transform [transform:translateZ(0)]"
+                className="discover-card discover-card-next pointer-events-none z-0 will-change-transform [transform:translateZ(0)]"
                 initial={false}
                 animate={{ scale: 0.965, opacity: 0.85, y: 10 }}
                 transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}

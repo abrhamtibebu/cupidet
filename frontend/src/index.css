@@ -326,6 +326,11 @@ textarea {
   background: #121212;
 }
 
+.discover-card-next {
+  position: absolute;
+  inset: 0;
+}
+
 .discover-card-name {
   font-family: var(--font-display);
   font-style: italic;
