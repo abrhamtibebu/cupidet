@@ -4,6 +4,8 @@ import {
   ChefHat,
   ChevronLeft,
   Coffee,
+  Eye,
+  EyeOff,
   Flag,
   Globe,
   Heart,
@@ -90,3 +92,9 @@ export const IconChef = wrap(ChefHat)
 
 /** Attribute: generic interest */
 export const IconSpark = wrap(Sparkles)
+
+/** Password visibility — show */
+export const IconEye = wrap(Eye)
+
+/** Password visibility — hide */
+export const IconEyeOff = wrap(EyeOff)

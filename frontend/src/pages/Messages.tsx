@@ -8,6 +8,7 @@ import { pollMs } from '../lib/perf'
 import type { ChatMessage, MatchItem } from '../types'
 import { BottomNav } from '../components/BottomNav'
 import { resolveMediaUrl } from '../lib/media'
+import { decryptFromPeer, isEncryptedBody } from '../lib/e2e'
 
 function MessagesSkeleton() {
   return (
@@ -40,6 +41,8 @@ export function MessagesPage() {
   const { user } = useAuth()
   const { refreshBadges } = useNavBadges()
   const [matches, setMatches] = useState<MatchItem[]>([])
+  /** Decrypted previews keyed by ciphertext envelope. */
+  const [plainByBody, setPlainByBody] = useState<Record<string, string>>({})
   const [typingByMatch, setTypingByMatch] = useState<Record<number, boolean>>({})
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -159,6 +162,38 @@ export function MessagesPage() {
     }
   }, [user?.id, refreshBadges])
 
+  // Decrypt E2E last-message previews with each match's public key.
+  useEffect(() => {
+    const pending = matches.filter(
+      (m) =>
+        m.last_message &&
+        isEncryptedBody(m.last_message.body) &&
+        m.user.e2e_public_key &&
+        plainByBody[m.last_message.body] === undefined,
+    )
+    if (pending.length === 0) return
+    let cancelled = false
+    void (async () => {
+      const entries: Record<string, string> = {}
+      for (const m of pending) {
+        const cipher = m.last_message!.body
+        const plain = await decryptFromPeer(m.user.e2e_public_key, cipher)
+        entries[cipher] = plain ?? '🔒 Message'
+      }
+      if (!cancelled) setPlainByBody((prev) => ({ ...prev, ...entries }))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [matches, plainByBody])
+
+  const previewFor = (match: MatchItem): string => {
+    const bodyText = match.last_message?.body
+    if (!bodyText) return 'It’s a match — say hi!'
+    if (isEncryptedBody(bodyText)) return plainByBody[bodyText] ?? '🔒 Message'
+    return bodyText
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return matches
@@ -265,7 +300,7 @@ export function MessagesPage() {
                       </span>
                     </div>
                     <p className={`truncate text-sm ${isTyping ? 'font-medium text-lime' : 'text-muted'}`}>
-                      {isTyping ? 'typing…' : match.last_message?.body || 'It’s a match — say hi!'}
+                      {isTyping ? 'typing…' : previewFor(match)}
                     </p>
                   </div>
                   {!isTyping && (match.unread_count || 0) > 0 && (

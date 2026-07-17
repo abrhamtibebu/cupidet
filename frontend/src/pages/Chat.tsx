@@ -8,6 +8,12 @@ import { pollMs } from '../lib/perf'
 import type { ChatMessage, MatchItem } from '../types'
 import { IconBack } from '../components/Icons'
 import { resolveMediaUrl } from '../lib/media'
+import {
+  ENCRYPTED_PLACEHOLDER,
+  decryptFromPeer,
+  encryptForPeer,
+  isEncryptedBody,
+} from '../lib/e2e'
 
 function StatusTicks({ status }: { status?: ChatMessage['status'] }) {
   if (!status || status === 'received') return null
@@ -118,6 +124,8 @@ export function ChatPage() {
   const navigate = useNavigate()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [peer, setPeer] = useState<MatchItem['user'] | null>(null)
+  /** Decrypted plaintext keyed by ciphertext envelope (E2E messages only). */
+  const [plainByBody, setPlainByBody] = useState<Record<string, string>>({})
   const [body, setBody] = useState('')
   const [peerTyping, setPeerTyping] = useState(false)
   const [error, setError] = useState('')
@@ -385,6 +393,28 @@ export function ChatPage() {
     if (stickToBottom.current) scrollToLatest(false)
   }, [messages.length, peerTyping, scrollToLatest])
 
+  // Decrypt incoming E2E envelopes once the peer's public key is known.
+  const peerKey = peer?.e2e_public_key || null
+  useEffect(() => {
+    if (!peerKey) return
+    const pending = messages.filter(
+      (m) => isEncryptedBody(m.body) && plainByBody[m.body] === undefined,
+    )
+    if (pending.length === 0) return
+    let cancelled = false
+    void (async () => {
+      const entries: Record<string, string> = {}
+      for (const msg of pending) {
+        const plain = await decryptFromPeer(peerKey, msg.body)
+        entries[msg.body] = plain ?? ENCRYPTED_PLACEHOLDER
+      }
+      if (!cancelled) setPlainByBody((prev) => ({ ...prev, ...entries }))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [messages, peerKey, plainByBody])
+
   const onScroll = () => {
     const el = scrollerRef.current
     if (!el) return
@@ -417,11 +447,20 @@ export function ChatPage() {
   const sendText = async (raw: string) => {
     if (!raw.trim() || !id || !user?.id) return
     const text = raw.trim()
+
+    // Encrypt when the peer has published a key — the server only stores ciphertext.
+    let wireBody = text
+    const encrypted = await encryptForPeer(peer?.e2e_public_key, text)
+    if (encrypted) {
+      wireBody = encrypted
+      setPlainByBody((prev) => ({ ...prev, [encrypted]: text }))
+    }
+
     const clientId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const optimistic: ChatMessage = {
       id: -Date.now(),
       match_id: id,
-      body: text,
+      body: wireBody,
       sender_id: user.id,
       is_mine: true,
       created_at: new Date().toISOString(),
@@ -438,7 +477,7 @@ export function ChatPage() {
     scrollToLatest(false)
 
     try {
-      const res = await api.sendMessage(id, text)
+      const res = await api.sendMessage(id, wireBody)
       const real = normalizeMessage(
         { ...(res.message as ChatMessage), client_id: clientId, is_mine: true },
         user.id,
@@ -521,10 +560,18 @@ export function ChatPage() {
             {messages.length === 0 && !error && (
               <div className="rounded-2xl bg-panel p-4 text-center text-sm text-muted">
                 You matched with {peer?.name || 'them'}. Say hello 👋
+                {peerKey ? (
+                  <span className="mt-1 block text-[11px] text-white/40">
+                    🔒 Messages are end-to-end encrypted
+                  </span>
+                ) : null}
               </div>
             )}
             {messages.map((msg) => {
               const mine = msg.is_mine || msg.sender_id === user?.id
+              const displayBody = isEncryptedBody(msg.body)
+                ? plainByBody[msg.body] ?? '🔒 …'
+                : msg.body
               return (
                 <div key={msg.client_id || msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                   <div
@@ -534,7 +581,7 @@ export function ChatPage() {
                         : 'rounded-bl-md bg-panel-2 text-white'
                     }`}
                   >
-                    <span>{msg.body}</span>
+                    <span>{displayBody}</span>
                     {mine && <StatusTicks status={msg.status} />}
                   </div>
                 </div>

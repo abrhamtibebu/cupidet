@@ -205,6 +205,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ start_param: startParam }),
     }),
+  uploadE2eKey: (publicKey: string) =>
+    request<{ ok: boolean }>('/e2e-key', {
+      method: 'POST',
+      body: JSON.stringify({ public_key: publicKey }),
+    }),
   report: (userId: number, reason: string, details?: string) =>
     request('/report', {
       method: 'POST',

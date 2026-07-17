@@ -95,6 +95,7 @@ export type DiscoverCard = {
   photos: { id: number; image_url: string; is_primary: boolean }[]
   interests: string[]
   username?: string | null
+  e2e_public_key?: string | null
   compatibility_score?: number
   distance_km?: number | null
   is_online?: boolean

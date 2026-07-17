@@ -9,6 +9,7 @@ import {
   telegramHaptic,
 } from '../lib/telegram'
 import { BrandLogo, BRAND_NAME } from '../components/Brand'
+import { IconEye, IconEyeOff } from '../components/Icons'
 import { LoadingButton } from '../components/Loading'
 import type { User } from '../types'
 
@@ -45,11 +46,12 @@ function PasswordField({
       />
       <button
         type="button"
-        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-1.5 py-1 text-xs font-semibold text-white/55 hover:text-white"
+        className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-white/75 transition-colors hover:text-white active:text-white"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? 'Hide password' : 'Show password'}
+        aria-pressed={visible}
       >
-        {visible ? 'Hide' : 'Show'}
+        {visible ? <IconEyeOff size={19} /> : <IconEye size={19} />}
       </button>
     </div>
   )
