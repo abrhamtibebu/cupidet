@@ -240,11 +240,11 @@ class TelegramBotService
     }
 
     /** URL button safe for groups (web_app buttons only work in private chats). */
-    public function miniAppLinkKeyboard(string $text = 'Open Mingle 251'): array
+    public function miniAppLinkKeyboard(string $text = 'Open Mingle 251', ?string $startParam = null): array
     {
         $bot = ltrim((string) config('services.telegram.bot_username', ''), '@');
         $url = $bot !== ''
-            ? "https://t.me/{$bot}?startapp"
+            ? 'https://t.me/'.$bot.'?startapp'.($startParam ? '='.rawurlencode($startParam) : '')
             : rtrim((string) config('services.telegram.mini_app_url'), '/').'/';
 
         if ($url === '/' || str_contains($url, 'trycloudflare.com') || str_contains($url, 'localhost')) {

@@ -176,6 +176,7 @@ class TelegramAuthService
             }
 
             $user->forceFill(['last_active' => now()])->save();
+            $this->trackBroadcastOpen($data, $user, $telegramUser);
 
             return $user->fresh(['profile', 'photos', 'interests', 'preferences']);
         }
@@ -192,8 +193,23 @@ class TelegramAuthService
         ]);
 
         $this->seedNewTelegramAccount($user, $telegramUser);
+        $this->trackBroadcastOpen($data, $user, $telegramUser);
 
         return $user->fresh(['profile', 'photos', 'interests', 'preferences']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $initDataFields
+     * @param  array<string, mixed>  $telegramUser
+     */
+    private function trackBroadcastOpen(array $initDataFields, User $user, array $telegramUser): void
+    {
+        $trackCode = trim((string) ($initDataFields['start_param'] ?? ''));
+        if ($trackCode === '') {
+            return;
+        }
+
+        app(TelegramBroadcastTrackingService::class)->recordOpen($trackCode, $user, $telegramUser);
     }
 
     /**

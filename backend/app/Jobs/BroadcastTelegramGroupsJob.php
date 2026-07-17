@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\TelegramBroadcast;
 use App\Models\TelegramGroup;
 use App\Services\TelegramBotService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,6 +27,8 @@ class BroadcastTelegramGroupsJob implements ShouldQueue
         public ?array $chatIds = null,
         public bool $withAppButton = true,
         public ?string $photoDiskPath = null,
+        public ?string $trackCode = null,
+        public ?int $broadcastId = null,
     ) {}
 
     /**
@@ -45,7 +48,9 @@ class BroadcastTelegramGroupsJob implements ShouldQueue
             $query->active();
         }
 
-        $markup = $this->withAppButton ? $bot->miniAppLinkKeyboard('Open Mingle 251') : null;
+        $markup = $this->withAppButton
+            ? $bot->miniAppLinkKeyboard('Open Mingle 251', $this->trackCode)
+            : null;
         $photoAbs = null;
         if ($this->photoDiskPath) {
             $photoAbs = Storage::disk('public')->path($this->photoDiskPath);
@@ -97,6 +102,15 @@ class BroadcastTelegramGroupsJob implements ShouldQueue
             'preview' => mb_substr($this->text, 0, 80),
             'results' => $results,
         ]);
+
+        if ($this->broadcastId) {
+            TelegramBroadcast::query()
+                ->whereKey($this->broadcastId)
+                ->update([
+                    'sent_count' => $sent,
+                    'failed_count' => $failed,
+                ]);
+        }
 
         return [
             'sent' => $sent,

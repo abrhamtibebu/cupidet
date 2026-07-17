@@ -51,6 +51,8 @@ Route::prefix('admin')->group(function () {
 
         Route::get('/telegram-groups', [AdminBroadcastController::class, 'groups']);
         Route::patch('/telegram-groups/{telegramGroup}', [AdminBroadcastController::class, 'updateGroup']);
+        Route::get('/telegram-broadcasts', [AdminBroadcastController::class, 'history']);
+        Route::get('/telegram-broadcasts/{telegramBroadcast}', [AdminBroadcastController::class, 'show']);
         Route::post('/telegram-broadcast', [AdminBroadcastController::class, 'broadcast']);
     });
 });
@@ -90,6 +92,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
 
         Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
+        Route::post('/broadcast-opens', [\App\Http\Controllers\Api\BroadcastOpenController::class, 'store'])->middleware('throttle:30,1');
         Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:10,10');
 
         Route::post('/report', [SafetyController::class, 'report'])->middleware('throttle:20,1');

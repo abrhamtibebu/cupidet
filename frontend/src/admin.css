@@ -443,6 +443,25 @@
   color: var(--admin-ink);
 }
 
+.admin-card-header {
+  padding: 1rem 1.1rem 0.25rem;
+}
+
+.admin-card-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.admin-broadcast-opens {
+  padding: 1rem 1.1rem 1.25rem;
+  border-top: 1px solid var(--admin-line);
+}
+
+.admin-broadcast-opens h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
 .admin-table tr.is-selected {
   background: rgba(254, 52, 97, 0.06);
 }

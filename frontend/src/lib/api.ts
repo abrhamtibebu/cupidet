@@ -200,6 +200,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  trackBroadcastOpen: (startParam: string) =>
+    request<{ ok: boolean }>('/broadcast-opens', {
+      method: 'POST',
+      body: JSON.stringify({ start_param: startParam }),
+    }),
   report: (userId: number, reason: string, details?: string) =>
     request('/report', {
       method: 'POST',

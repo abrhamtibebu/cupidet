@@ -105,6 +105,29 @@ export type AdminTelegramGroup = {
   updated_at: string | null
 }
 
+export type AdminTelegramBroadcast = {
+  id: number
+  message_preview: string | null
+  has_photo: boolean
+  with_app_button: boolean
+  target_count: number
+  sent_count: number
+  failed_count: number
+  opens_count: number
+  track_code: string
+  created_at: string | null
+}
+
+export type AdminTelegramBroadcastOpen = {
+  id: number
+  telegram_id: number
+  username: string | null
+  first_name: string | null
+  last_name: string | null
+  user_id: number | null
+  opened_at: string | null
+}
+
 export type AdminBreakdown = {
   name: string
   count: number
@@ -278,6 +301,7 @@ export const adminApi = {
     if (payload.image) form.append('image', payload.image)
     return request<{
       queued: boolean
+      broadcast_id?: number
       count: number
       sent?: number
       failed?: number
@@ -285,4 +309,12 @@ export const adminApi = {
       results?: { chat_id: number; title: string | null; ok: boolean; error: string | null }[]
     }>('/telegram-broadcast', { method: 'POST', body: form }, 60000)
   },
+  telegramBroadcasts: (params?: { page?: number; per_page?: number }) =>
+    request<{ data: AdminTelegramBroadcast[]; meta: AdminMeta }>(
+      `/telegram-broadcasts${qs(params || {})}`,
+    ),
+  telegramBroadcastDetail: (id: number) =>
+    request<{ broadcast: AdminTelegramBroadcast; opens: AdminTelegramBroadcastOpen[] }>(
+      `/telegram-broadcasts/${id}`,
+    ),
 }

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { adminApi, type AdminTelegramGroup } from '../../lib/adminApi'
-import { EmptyState, LoadingState, PageHeader, StatusBadge } from './components/ui'
+import {
+  adminApi,
+  type AdminTelegramBroadcast,
+  type AdminTelegramBroadcastOpen,
+  type AdminTelegramGroup,
+} from '../../lib/adminApi'
+import { EmptyState, LoadingState, PageHeader, Pagination, StatusBadge } from './components/ui'
 
 const EMOJIS = ['❤️', '🔥', '✨', '🎉', '💚', '👋', '🙏', '😍', '💯', '🚀', '⭐', '💬']
 
@@ -19,6 +24,13 @@ export function AdminBroadcastPage() {
   const [sending, setSending] = useState(false)
   const [targetChatId, setTargetChatId] = useState<number | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [history, setHistory] = useState<AdminTelegramBroadcast[]>([])
+  const [historyPage, setHistoryPage] = useState(1)
+  const [historyMeta, setHistoryMeta] = useState({ total: 0, per_page: 20, current_page: 1, last_page: 1 })
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [selectedBroadcastId, setSelectedBroadcastId] = useState<number | null>(null)
+  const [opens, setOpens] = useState<AdminTelegramBroadcastOpen[]>([])
+  const [opensLoading, setOpensLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -34,9 +46,35 @@ export function AdminBroadcastPage() {
     }
   }, [])
 
+  const loadHistory = useCallback(async (page = 1) => {
+    setHistoryLoading(true)
+    try {
+      const res = await adminApi.telegramBroadcasts({ page, per_page: 20 })
+      setHistory(res.data)
+      setHistoryMeta(res.meta)
+    } catch {
+      /* history is secondary — composer still works */
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
+  const loadOpens = useCallback(async (broadcastId: number) => {
+    setOpensLoading(true)
+    try {
+      const res = await adminApi.telegramBroadcastDetail(broadcastId)
+      setOpens(res.opens)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load opens')
+    } finally {
+      setOpensLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     void load()
-  }, [load])
+    void loadHistory(historyPage)
+  }, [load, loadHistory, historyPage])
 
   useEffect(() => {
     return () => {
@@ -110,6 +148,11 @@ export function AdminBroadcastPage() {
         )
       }
       await load()
+      await loadHistory(historyPage)
+      if (res.broadcast_id) {
+        setSelectedBroadcastId(res.broadcast_id)
+        await loadOpens(res.broadcast_id)
+      }
       if (editorRef.current) editorRef.current.innerHTML = ''
       onPickImage(null)
       if (fileRef.current) fileRef.current.value = ''
@@ -132,6 +175,28 @@ export function AdminBroadcastPage() {
     } finally {
       setBusyId(null)
     }
+  }
+
+  async function toggleBroadcast(id: number) {
+    if (selectedBroadcastId === id) {
+      setSelectedBroadcastId(null)
+      setOpens([])
+      return
+    }
+    setSelectedBroadcastId(id)
+    await loadOpens(id)
+  }
+
+  function formatUser(open: AdminTelegramBroadcastOpen) {
+    const name = [open.first_name, open.last_name].filter(Boolean).join(' ')
+    if (name) return name
+    if (open.username) return `@${open.username}`
+    return `User ${open.telegram_id}`
+  }
+
+  function formatWhen(iso: string | null) {
+    if (!iso) return '—'
+    return new Date(iso).toLocaleString()
   }
 
   const filtered = groups.filter((g) => {
@@ -257,6 +322,108 @@ export function AdminBroadcastPage() {
         <p className="admin-muted" style={{ marginTop: '0.75rem' }}>
           Restricted groups (only admins can post) need the bot promoted to admin. Re-add the bot if a group is missing.
         </p>
+        <p className="admin-muted" style={{ marginTop: '0.5rem' }}>
+          Opens are tracked when someone taps “Open Mingle 251” and signs into the Mini App. Telegram does not expose group message view counts.
+        </p>
+      </div>
+
+      <div className="admin-card admin-table-wrap">
+        <div className="admin-card-header">
+          <h2>Broadcast history</h2>
+          <p className="admin-muted">Unique Mini App opens per broadcast (button taps).</p>
+        </div>
+        {historyLoading ? <LoadingState /> : null}
+        {!historyLoading && history.length === 0 ? (
+          <EmptyState title="No broadcasts yet" subtitle="Send your first announcement above." />
+        ) : null}
+        {!historyLoading && history.length > 0 ? (
+          <>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Sent</th>
+                  <th>Message</th>
+                  <th>Delivery</th>
+                  <th>Opens</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((row) => (
+                  <tr key={row.id} className={selectedBroadcastId === row.id ? 'is-selected' : undefined}>
+                    <td>{formatWhen(row.created_at)}</td>
+                    <td>
+                      <strong>{row.message_preview || '—'}</strong>
+                      {row.has_photo ? <div className="admin-muted">With image</div> : null}
+                    </td>
+                    <td>
+                      {row.sent_count}/{row.target_count} sent
+                      {row.failed_count > 0 ? (
+                        <div className="admin-error">{row.failed_count} failed</div>
+                      ) : null}
+                    </td>
+                    <td>
+                      <strong>{row.opens_count}</strong>
+                      {!row.with_app_button ? (
+                        <div className="admin-muted">No button</div>
+                      ) : null}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="admin-btn-ghost"
+                        onClick={() => void toggleBroadcast(row.id)}
+                      >
+                        {selectedBroadcastId === row.id ? 'Hide opens' : 'View opens'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <Pagination
+              page={historyMeta.current_page}
+              lastPage={historyMeta.last_page}
+              total={historyMeta.total}
+              onPage={setHistoryPage}
+            />
+          </>
+        ) : null}
+
+        {selectedBroadcastId !== null ? (
+          <div className="admin-broadcast-opens">
+            <h3>Who opened the app</h3>
+            {opensLoading ? <LoadingState /> : null}
+            {!opensLoading && opens.length === 0 ? (
+              <p className="admin-muted">No opens yet. Users must tap the broadcast button and open the Mini App.</p>
+            ) : null}
+            {!opensLoading && opens.length > 0 ? (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Telegram ID</th>
+                    <th>Opened</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {opens.map((open) => (
+                    <tr key={open.id}>
+                      <td>
+                        <strong>{formatUser(open)}</strong>
+                        {open.user_id ? <div className="admin-muted">App user #{open.user_id}</div> : null}
+                      </td>
+                      <td>
+                        <code>{open.telegram_id}</code>
+                      </td>
+                      <td>{formatWhen(open.opened_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="admin-card admin-table-wrap">

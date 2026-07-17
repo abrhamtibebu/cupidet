@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   motion,
   useAnimation,
@@ -45,9 +45,14 @@ function interestIcon(label: string): ReactNode {
 }
 
 export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRewind = false, onReport }: Props) {
-  const photos = card.photos?.length
-    ? card.photos.map((p) => resolveMediaUrl(p.image_url))
-    : [resolveMediaUrl(card.photo_url, 'https://i.pravatar.cc/800?u=fallback')]
+  const photos = useMemo(() => {
+    const fromAlbum = (card.photos || [])
+      .map((p) => resolveMediaUrl(p.image_url))
+      .filter(Boolean)
+    if (fromAlbum.length > 0) return fromAlbum
+    return [resolveMediaUrl(card.photo_url, 'https://i.pravatar.cc/800?u=fallback')]
+  }, [card.photos, card.photo_url])
+
   const [photoIndex, setPhotoIndex] = useState(0)
   const [busy, setBusy] = useState(false)
   const [forcedBadge, setForcedBadge] = useState<ExitDir>(null)
@@ -64,13 +69,19 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
   const passBorderOpacity = useTransform(x, [-120, -16], [0.9, 0])
 
   useEffect(() => {
+    setPhotoIndex(0)
+    setBusy(false)
+    setForcedBadge(null)
+    x.set(0)
     void controls.start({
       opacity: 1,
       scale: 1,
       y: 0,
+      x: 0,
+      rotate: 0,
       transition: { type: 'tween', duration: 0.28, ease: [0.22, 1, 0.36, 1] },
     })
-  }, [controls])
+  }, [card.id, controls, x])
 
   useEffect(() => {
     photos.slice(1, 3).forEach((src) => {
@@ -78,6 +89,8 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
       img.src = src
     })
   }, [photos])
+
+  const safePhotoIndex = Math.min(photoIndex, Math.max(0, photos.length - 1))
 
   const goal = goalLabel(card.relationship_goal).toUpperCase()
   const locationLabel = card.location?.trim() || 'Nearby'
@@ -95,8 +108,8 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
   const attrChips: { key: string; icon: ReactNode; label: string }[] = []
   if (card.height_cm) attrChips.push({ key: 'height', icon: <IconHeight size={12} />, label: `${card.height_cm} cm` })
   if (languages) attrChips.push({ key: 'langs', icon: <IconLanguages size={12} />, label: languages })
-  interests.forEach((interest) => {
-    attrChips.push({ key: interest, icon: interestIcon(interest), label: interest })
+  interests.forEach((interest, index) => {
+    attrChips.push({ key: `${interest}-${index}`, icon: interestIcon(interest), label: interest })
   })
 
   const nextPhoto = () => setPhotoIndex((i) => Math.min(photos.length - 1, i + 1))
@@ -144,10 +157,9 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
         onDragEnd={handleDragEnd}
         animate={controls}
         initial={{ opacity: 1, scale: 0.96, y: 8 }}
-        exit={{ opacity: 0, transition: { duration: 0.12 } }}
       >
         <img
-          src={photos[photoIndex]}
+          src={photos[safePhotoIndex]}
           alt={card.name}
           className="absolute inset-0 h-full w-full object-cover"
           draggable={false}
@@ -203,7 +215,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
             {photos.map((_, i) => (
               <span
                 key={i}
-                className={`h-1 rounded-full transition-all ${i === photoIndex ? 'w-5 bg-lime' : 'w-3 bg-white/35'}`}
+                className={`h-1 rounded-full transition-all ${i === safePhotoIndex ? 'w-5 bg-lime' : 'w-3 bg-white/35'}`}
               />
             ))}
           </div>

@@ -322,6 +322,19 @@ export function getTelegramUserUnsafe(): TelegramUnsafeUser | null {
   return getLegacyWebApp()?.initDataUnsafe?.user ?? null
 }
 
+/** Mini App start_param from broadcast links (?startapp=bc123). */
+export function getTelegramStartParam(): string | null {
+  const initData = getTelegramInitData()
+  if (initData) {
+    const params = new URLSearchParams(initData)
+    const fromSigned = params.get('start_param')
+    if (fromSigned) return fromSigned
+  }
+
+  const unsafe = getLegacyWebApp()?.initDataUnsafe as { start_param?: string } | undefined
+  return unsafe?.start_param ?? null
+}
+
 export function getTelegramThemeParams(): Record<string, string> {
   return getLegacyWebApp()?.themeParams ?? {}
 }

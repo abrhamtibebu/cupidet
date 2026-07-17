@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { api, setToken } from '../lib/api'
+import { api, getToken, setToken } from '../lib/api'
 import { disconnectEcho } from '../lib/echo'
 import { AuthContext, restrictionFromMessage, type AccountRestriction } from '../lib/auth'
-import { getTelegramInitData, getTelegramUserUnsafe, isInsideTelegram } from '../lib/telegram'
+import { getTelegramInitData, getTelegramStartParam, getTelegramUserUnsafe, isInsideTelegram } from '../lib/telegram'
 import type { User } from '../types'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -47,6 +47,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const trackBroadcastOpenIfNeeded = useCallback(async () => {
+    const startParam = getTelegramStartParam()
+    if (!startParam || !startParam.startsWith('bc')) return
+    const key = `cupid_tracked_${startParam}`
+    if (sessionStorage.getItem(key)) return
+    if (!getToken()) return
+    try {
+      await api.trackBroadcastOpen(startParam)
+      sessionStorage.setItem(key, '1')
+    } catch {
+      /* non-blocking */
+    }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -54,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const existing = localStorage.getItem('cupid_token')
         if (existing) {
           await refresh()
+          await trackBroadcastOpenIfNeeded()
           return
         }
 
@@ -65,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           const res = await api.authTelegram(initData)
           if (!cancelled) setSession(res.token, res.user as User, res.onboarding_complete)
+          await trackBroadcastOpenIfNeeded()
           return
         }
 
@@ -83,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [refresh, setSession])
+  }, [refresh, setSession, trackBroadcastOpenIfNeeded])
 
   useEffect(() => {
     function syncRestricted() {

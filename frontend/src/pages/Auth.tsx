@@ -14,6 +14,47 @@ import type { User } from '../types'
 
 type Mode = 'signin' | 'signup'
 
+function PasswordField({
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  required,
+  minLength,
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  autoComplete: string
+  required?: boolean
+  minLength?: number
+}) {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <div className="relative">
+      <input
+        className="field pr-12"
+        type={visible ? 'text' : 'password'}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        minLength={minLength}
+      />
+      <button
+        type="button"
+        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-1.5 py-1 text-xs font-semibold text-white/55 hover:text-white"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? 'Hide password' : 'Show password'}
+      >
+        {visible ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  )
+}
+
 export function AuthPage() {
   const { setSession, clearAccountRestriction, setAccountRestriction } = useAuth()
   const [mode, setMode] = useState<Mode>('signin')
@@ -193,24 +234,20 @@ export function AuthPage() {
             onChange={(e) => setForm({ ...form, username: e.target.value })}
             required
           />
-          <input
-            className="field"
-            type="password"
+          <PasswordField
             placeholder="Password"
             autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
             value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            onChange={(password) => setForm({ ...form, password })}
             required
             minLength={6}
           />
           {mode === 'signup' && (
-            <input
-              className="field"
-              type="password"
+            <PasswordField
               placeholder="Confirm password"
               autoComplete="new-password"
               value={form.password_confirmation}
-              onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })}
+              onChange={(password_confirmation) => setForm({ ...form, password_confirmation })}
               required
               minLength={6}
             />

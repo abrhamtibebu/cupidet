@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\BroadcastTelegramGroupsJob;
+use App\Models\TelegramBroadcast;
 use App\Models\TelegramGroup;
 use App\Support\TelegramHtml;
 use Illuminate\Http\JsonResponse;
@@ -113,11 +114,28 @@ class BroadcastController extends Controller
             ], 422);
         }
 
+        $preview = $text !== ''
+            ? mb_substr(trim(html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8')), 0, 200)
+            : ($photoPath ? '[Image]' : '');
+
+        $broadcast = TelegramBroadcast::query()->create([
+            'message_preview' => $preview,
+            'photo_path' => $photoPath,
+            'with_app_button' => (bool) ($data['with_app_button'] ?? true),
+            'target_count' => $count,
+            'track_code' => 'pending',
+        ]);
+        $broadcast->update([
+            'track_code' => TelegramBroadcast::trackCodeForId($broadcast->id),
+        ]);
+
         $job = new BroadcastTelegramGroupsJob(
             $text,
             $chatIds,
             (bool) ($data['with_app_button'] ?? true),
             $photoPath,
+            $broadcast->track_code,
+            $broadcast->id,
         );
 
         // Small batches send inline so delivery never depends on a queue worker.
@@ -127,6 +145,7 @@ class BroadcastController extends Controller
 
             return response()->json([
                 'queued' => false,
+                'broadcast_id' => $broadcast->id,
                 'count' => $count,
                 'sent' => $outcome['sent'] ?? 0,
                 'failed' => $outcome['failed'] ?? 0,
@@ -139,8 +158,78 @@ class BroadcastController extends Controller
 
         return response()->json([
             'queued' => true,
+            'broadcast_id' => $broadcast->id,
             'count' => $count,
             'has_photo' => $photoPath !== null,
+        ]);
+    }
+
+    public function history(Request $request): JsonResponse
+    {
+        $perPage = min(50, max(1, (int) $request->integer('per_page', 20)));
+
+        $paginator = TelegramBroadcast::query()
+            ->withCount('opens')
+            ->latest('id')
+            ->paginate($perPage);
+
+        $data = $paginator->getCollection()->map(fn (TelegramBroadcast $b) => [
+            'id' => $b->id,
+            'message_preview' => $b->message_preview,
+            'has_photo' => $b->photo_path !== null,
+            'with_app_button' => (bool) $b->with_app_button,
+            'target_count' => $b->target_count,
+            'sent_count' => $b->sent_count,
+            'failed_count' => $b->failed_count,
+            'opens_count' => $b->opens_count,
+            'track_code' => $b->track_code,
+            'created_at' => optional($b->created_at)?->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
+    public function show(TelegramBroadcast $telegramBroadcast): JsonResponse
+    {
+        $telegramBroadcast->loadCount('opens');
+
+        $opens = $telegramBroadcast->opens()
+            ->with('user:id,username,first_name,last_name,telegram_id')
+            ->latest('id')
+            ->limit(500)
+            ->get()
+            ->map(fn ($open) => [
+                'id' => $open->id,
+                'telegram_id' => $open->telegram_id,
+                'username' => $open->username,
+                'first_name' => $open->first_name,
+                'last_name' => $open->last_name,
+                'user_id' => $open->user_id,
+                'opened_at' => optional($open->created_at)?->toIso8601String(),
+            ]);
+
+        return response()->json([
+            'broadcast' => [
+                'id' => $telegramBroadcast->id,
+                'message_preview' => $telegramBroadcast->message_preview,
+                'has_photo' => $telegramBroadcast->photo_path !== null,
+                'with_app_button' => (bool) $telegramBroadcast->with_app_button,
+                'target_count' => $telegramBroadcast->target_count,
+                'sent_count' => $telegramBroadcast->sent_count,
+                'failed_count' => $telegramBroadcast->failed_count,
+                'opens_count' => $telegramBroadcast->opens_count,
+                'track_code' => $telegramBroadcast->track_code,
+                'created_at' => optional($telegramBroadcast->created_at)?->toIso8601String(),
+            ],
+            'opens' => $opens,
         ]);
     }
 }

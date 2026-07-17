@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -244,18 +244,17 @@ export function DiscoverPage() {
               </motion.div>
             )}
             <div className="relative z-10 h-full min-h-0">
-              <AnimatePresence mode="sync" initial={false}>
-                <ProfileCard
-                  key={current.id}
-                  card={current}
-                  onLike={() => void react('like')}
-                  onSuperLike={() => void react('super')}
-                  onPass={() => void onPass()}
-                  onRewind={() => void onRewind()}
-                  canRewind={canRewind}
-                  onReport={() => setReportOpen(true)}
-                />
-              </AnimatePresence>
+              {/* No AnimatePresence here: mode=sync stacked two full-height cards and broke the layout when swiping a multi-card deck. Exit is handled by ProfileCard flyOut before state updates. */}
+              <ProfileCard
+                key={current.id}
+                card={current}
+                onLike={() => void react('like')}
+                onSuperLike={() => void react('super')}
+                onPass={() => void onPass()}
+                onRewind={() => void onRewind()}
+                canRewind={canRewind}
+                onReport={() => setReportOpen(true)}
+              />
             </div>
           </div>
         ) : (
