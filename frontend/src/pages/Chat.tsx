@@ -155,11 +155,16 @@ export function ChatPage() {
   const applyPeerTyping = useCallback((typing: boolean) => {
     if (typing) {
       setPeerTyping(true)
-      if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
-      typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 2800)
+      if (typingHideTimer.current) {
+        window.clearTimeout(typingHideTimer.current)
+        typingHideTimer.current = null
+      }
       return
     }
-    // Don't clear immediately on a single false poll — let the sticky timer expire.
+    // Only clear when the peer explicitly stopped / left the input.
+    if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
+    typingHideTimer.current = null
+    setPeerTyping(false)
   }, [])
 
   useEffect(() => {
@@ -312,15 +317,15 @@ export function ChatPage() {
     if (!typingPulse.current) {
       emitTyping(true, true)
       lastTypingEmitAt.current = now
+      // Keep "typing" alive for the whole time the input has text — not only on keystrokes.
       typingPulse.current = window.setInterval(() => {
-        if (bodyRef.current.trim()) {
+        if (inputFocused.current && bodyRef.current.trim()) {
           emitTyping(true, true)
           lastTypingEmitAt.current = Date.now()
         }
-      }, 1000)
+      }, 2500)
       return
     }
-    // Refresh typing signal quickly while keys are coming in (max ~2.5/sec).
     if (now - lastTypingEmitAt.current > 400) {
       emitTyping(true, true)
       lastTypingEmitAt.current = now
@@ -443,10 +448,6 @@ export function ChatPage() {
     const onTyping = (payload: { user_id: number; typing: boolean }) => {
       if (payload.user_id === userIdRef.current) return
       applyPeerTyping(payload.typing)
-      if (!payload.typing) {
-        if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
-        setPeerTyping(false)
-      }
     }
 
     channel.listen('.message.sent', onSent)
@@ -555,6 +556,17 @@ export function ChatPage() {
     } finally {
       setBusyAction('')
     }
+  }
+
+  const openDatePlanner = (prefill = true) => {
+    if (prefill && upcomingDate?.scheduled_at) {
+      setDateForm({
+        scheduled_at: toLocalInputValue(new Date(upcomingDate.scheduled_at)),
+        place: upcomingDate.place || '',
+        note: upcomingDate.note || '',
+      })
+    }
+    setDateOpen(true)
   }
 
   const submitDate = async () => {
@@ -676,9 +688,9 @@ export function ChatPage() {
         <button
           type="button"
           className="grid h-9 w-9 place-items-center rounded-full bg-panel text-lg text-white/80"
-          onClick={() => setDateOpen(true)}
-          aria-label="Set a date"
-          title="Set a date"
+          onClick={() => openDatePlanner(true)}
+          aria-label={upcomingDate ? 'Reschedule date' : 'Set a date'}
+          title={upcomingDate ? 'Reschedule date' : 'Set a date'}
         >
           📅
         </button>
@@ -702,26 +714,35 @@ export function ChatPage() {
               <p className="mt-0.5 text-sm font-semibold text-white">{formatDateWhen(upcomingDate.scheduled_at)}</p>
               {upcomingDate.place ? <p className="text-xs text-white/65">{upcomingDate.place}</p> : null}
             </div>
-            {upcomingDate.status === 'pending' && upcomingDate.proposed_by !== user?.id ? (
-              <div className="flex shrink-0 gap-1.5">
-                <button
-                  type="button"
-                  className="rounded-full bg-lime px-2.5 py-1 text-[11px] font-bold text-ink"
-                  disabled={!!busyAction}
-                  onClick={() => void respondToDate(upcomingDate.id, 'accepted')}
-                >
-                  Accept
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white"
-                  disabled={!!busyAction}
-                  onClick={() => void respondToDate(upcomingDate.id, 'declined')}
-                >
-                  Decline
-                </button>
-              </div>
-            ) : null}
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              {upcomingDate.status === 'pending' && upcomingDate.proposed_by !== user?.id ? (
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    className="rounded-full bg-lime px-2.5 py-1 text-[11px] font-bold text-ink"
+                    disabled={!!busyAction}
+                    onClick={() => void respondToDate(upcomingDate.id, 'accepted')}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white"
+                    disabled={!!busyAction}
+                    onClick={() => void respondToDate(upcomingDate.id, 'declined')}
+                  >
+                    Decline
+                  </button>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white"
+                onClick={() => openDatePlanner(true)}
+              >
+                Reschedule
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -739,7 +760,7 @@ export function ChatPage() {
               <button
                 type="button"
                 className="mt-3 block w-full rounded-full border border-white/10 py-2 text-xs font-semibold text-lime"
-                onClick={() => setDateOpen(true)}
+                onClick={() => openDatePlanner(false)}
               >
                 Or set a date
               </button>
@@ -763,7 +784,9 @@ export function ChatPage() {
               return (
                 <div key={msg.client_id || msg.id} className="flex justify-center px-2">
                   <div className="w-full max-w-[92%] rounded-2xl border border-white/10 bg-panel-2 p-3.5">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-lime">Date proposal</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-lime">
+                      {msg.meta?.rescheduled ? 'Date rescheduled' : 'Date proposal'}
+                    </p>
                     <p className="mt-1 text-sm font-semibold">{formatDateWhen(msg.meta?.scheduled_at)}</p>
                     {msg.meta?.place ? <p className="mt-0.5 text-xs text-muted">{msg.meta.place}</p> : null}
                     {msg.meta?.note ? <p className="mt-2 text-sm text-white/80">{msg.meta.note}</p> : null}
@@ -788,6 +811,24 @@ export function ChatPage() {
                         </button>
                       </div>
                     ) : null}
+                    {(st === 'pending' || st === 'accepted') && (
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded-full border border-white/10 py-2 text-xs font-semibold text-lime"
+                        onClick={() => {
+                          if (msg.meta?.scheduled_at) {
+                            setDateForm({
+                              scheduled_at: toLocalInputValue(new Date(msg.meta.scheduled_at)),
+                              place: msg.meta.place || '',
+                              note: msg.meta.note || '',
+                            })
+                          }
+                          setDateOpen(true)
+                        }}
+                      >
+                        Suggest a new time / place
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -873,8 +914,8 @@ export function ChatPage() {
                 <span className="font-semibold">{muted ? 'Unmute chat' : 'Mute notifications'}</span>
                 <span className="text-xs text-muted">{muted ? 'On' : 'Off'}</span>
               </button>
-              <button type="button" className="w-full rounded-2xl bg-panel px-4 py-3.5 text-left font-semibold" onClick={() => { setSettingsOpen(false); setDateOpen(true) }}>
-                Set a date
+              <button type="button" className="w-full rounded-2xl bg-panel px-4 py-3.5 text-left font-semibold" onClick={() => { setSettingsOpen(false); openDatePlanner(true) }}>
+                {upcomingDate ? 'Reschedule date' : 'Set a date'}
               </button>
               <button type="button" className="w-full rounded-2xl bg-panel px-4 py-3.5 text-left font-semibold" onClick={() => { setSettingsOpen(false); setReportOpen(true) }}>
                 Report
@@ -897,7 +938,7 @@ export function ChatPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Set a date</h2>
+              <h2 className="text-lg font-bold">{upcomingDate ? 'Reschedule date' : 'Set a date'}</h2>
               <button type="button" className="text-sm text-muted" onClick={() => setDateOpen(false)}>
                 Close
               </button>
@@ -935,7 +976,7 @@ export function ChatPage() {
               disabled={busyAction === 'date' || !dateForm.scheduled_at}
               onClick={() => void submitDate()}
             >
-              {busyAction === 'date' ? 'Sending…' : 'Send date proposal'}
+              {busyAction === 'date' ? 'Saving…' : upcomingDate ? 'Send new plan' : 'Send proposal'}
             </button>
           </div>
         </div>

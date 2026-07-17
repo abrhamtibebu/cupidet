@@ -248,18 +248,41 @@ class ChatService
         $match = $this->findAuthorizedMatch($user, $matchId);
         $other = $match->otherUser($user->id);
 
-        $date = MatchDate::query()->create([
-            'match_id' => $match->id,
-            'proposed_by' => $user->id,
-            'scheduled_at' => $data['scheduled_at'],
-            'place' => $data['place'] ?? null,
-            'note' => $data['note'] ?? null,
-            'status' => 'pending',
-        ]);
+        $existing = MatchDate::query()
+            ->where('match_id', $match->id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->where('scheduled_at', '>=', now()->subDay())
+            ->orderByDesc('id')
+            ->first();
+
+        $isReschedule = $existing !== null;
+
+        if ($isReschedule) {
+            $existing->update([
+                'proposed_by' => $user->id,
+                'scheduled_at' => $data['scheduled_at'],
+                'place' => $data['place'] ?? null,
+                'note' => $data['note'] ?? null,
+                // Changing time/place needs a fresh yes from the other person.
+                'status' => 'pending',
+            ]);
+            $date = $existing->fresh();
+        } else {
+            $date = MatchDate::query()->create([
+                'match_id' => $match->id,
+                'proposed_by' => $user->id,
+                'scheduled_at' => $data['scheduled_at'],
+                'place' => $data['place'] ?? null,
+                'note' => $data['note'] ?? null,
+                'status' => 'pending',
+            ]);
+        }
 
         $when = $date->scheduled_at->timezone(config('app.timezone'))->format('D, M j · g:i A');
         $place = $date->place ? ' at '.$date->place : '';
-        $body = "📅 Date proposal: {$when}{$place}";
+        $body = $isReschedule
+            ? "📅 Date rescheduled: {$when}{$place}"
+            : "📅 Date proposal: {$when}{$place}";
         if ($date->note) {
             $body .= "\n".$date->note;
         }
@@ -275,8 +298,26 @@ class ChatService
                 'place' => $date->place,
                 'note' => $date->note,
                 'status' => $date->status,
+                'rescheduled' => $isReschedule,
             ],
         ]);
+
+        // Keep older proposal cards pointing at the same date_id in sync.
+        Message::query()
+            ->where('match_id', $match->id)
+            ->where('type', 'date_proposal')
+            ->whereKeyNot($message->id)
+            ->get()
+            ->filter(fn (Message $m) => (int) ($m->meta['date_id'] ?? 0) === (int) $date->id)
+            ->each(function (Message $m) use ($date) {
+                $meta = $m->meta ?? [];
+                $meta['scheduled_at'] = $date->scheduled_at->toIso8601String();
+                $meta['place'] = $date->place;
+                $meta['note'] = $date->note;
+                $meta['status'] = $date->status;
+                $meta['rescheduled'] = true;
+                $m->update(['meta' => $meta]);
+            });
 
         $this->safeBroadcast(new MessageSent($message));
 
@@ -291,6 +332,7 @@ class ChatService
         return [
             'message' => $this->payload($message, $user->id),
             'date' => $this->datePayload($date),
+            'rescheduled' => $isReschedule,
         ];
     }
 
@@ -492,7 +534,8 @@ class ChatService
         // Store a timestamp so polling clients can tell "still typing" vs stale cache.
         $key = $this->typingKey($match->id, $user->id);
         if ($typing) {
-            Cache::put($key, now()->getTimestamp(), now()->addSeconds(5));
+            // Long enough that a focused typer only needs occasional refresh pulses.
+            Cache::put($key, now()->getTimestamp(), now()->addSeconds(20));
         } else {
             Cache::forget($key);
         }
@@ -534,7 +577,7 @@ class ChatService
             return true;
         }
 
-        return (now()->getTimestamp() - (int) $ts) <= 4;
+        return (now()->getTimestamp() - (int) $ts) <= 18;
     }
 
     private function typingKey(int $matchId, int $userId): string

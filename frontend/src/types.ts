@@ -114,6 +114,7 @@ export type ChatMessage = {
     place?: string | null
     note?: string | null
     status?: string
+    rescheduled?: boolean
   } | null
   sender_id: number
   is_mine: boolean
