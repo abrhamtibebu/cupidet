@@ -8,7 +8,7 @@ import { MatchModal } from '../components/MatchModal'
 import { IconBack, IconLike } from '../components/Icons'
 import { useNavBadges } from '../lib/navBadges'
 import { telegramHaptic } from '../lib/telegram'
-import { MediaImage } from '../components/MediaImage'
+import { resolveMediaUrl } from '../lib/media'
 
 export function LikesPage() {
   const { user } = useAuth()
@@ -78,12 +78,12 @@ export function LikesPage() {
               className="relative overflow-hidden rounded-[22px] bg-panel text-left"
               onClick={() => void likeBack(card)}
             >
-              <MediaImage
-                src={card.photo_url}
-                fallbacks={card.photos?.map((p) => p.image_url)}
+              <img
+                src={resolveMediaUrl(card.photo_url, 'https://i.pravatar.cc/400')}
                 alt={card.name}
                 className="aspect-[3/4] w-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
               <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-heart">

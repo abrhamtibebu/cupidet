@@ -7,8 +7,8 @@ import {
   type PanInfo,
 } from 'framer-motion'
 import type { DiscoverCard } from '../types'
+import { resolveMediaUrl } from '../lib/media'
 import { goalLabel } from '../lib/profileOptions'
-import { MediaImage } from './MediaImage'
 import {
   IconChef,
   IconCoffee,
@@ -46,8 +46,8 @@ function interestIcon(label: string): ReactNode {
 
 export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRewind = false, onReport }: Props) {
   const photos = card.photos?.length
-    ? card.photos.map((p) => p.image_url).filter(Boolean)
-    : [card.photo_url].filter(Boolean)
+    ? card.photos.map((p) => resolveMediaUrl(p.image_url))
+    : [resolveMediaUrl(card.photo_url, 'https://i.pravatar.cc/800?u=fallback')]
   const [photoIndex, setPhotoIndex] = useState(0)
   const [busy, setBusy] = useState(false)
   const [forcedBadge, setForcedBadge] = useState<ExitDir>(null)
@@ -74,9 +74,7 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
 
   useEffect(() => {
     photos.slice(1, 3).forEach((src) => {
-      if (!src) return
       const img = new Image()
-      img.referrerPolicy = 'no-referrer'
       img.src = src
     })
   }, [photos])
@@ -148,12 +146,12 @@ export function ProfileCard({ card, onLike, onPass, onSuperLike, onRewind, canRe
         initial={{ opacity: 1, scale: 0.96, y: 8 }}
         exit={{ opacity: 0, transition: { duration: 0.12 } }}
       >
-        <MediaImage
+        <img
           src={photos[photoIndex]}
-          fallbacks={[card.photo_url, ...photos]}
           alt={card.name}
           className="absolute inset-0 h-full w-full object-cover"
           draggable={false}
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" />
 

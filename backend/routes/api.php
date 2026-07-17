@@ -21,10 +21,6 @@ Route::post('/auth/login', [AuthController::class, 'login'])->middleware('thrott
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 Route::post('/telegram/webhook', TelegramWebhookController::class);
 
-// Public photo proxy — survives ephemeral /storage 404s via CDN redirect / Telegram re-fetch
-Route::get('/media/photos/{photo}', [\App\Http\Controllers\Api\MediaController::class, 'photo'])
-    ->middleware('throttle:180,1');
-
 Route::prefix('admin')->group(function () {
     Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:20,1');
 

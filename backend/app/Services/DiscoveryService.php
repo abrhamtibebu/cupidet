@@ -329,13 +329,7 @@ class DiscoveryService
                 })->values()->all()
                 : [],
             'verified' => (bool) $user->verified,
-            'photo_url' => $primary?->image_url
-                ?? (is_string($user->photo_url)
-                    && str_starts_with($user->photo_url, 'http')
-                    && ! str_contains($user->photo_url, '/storage/')
-                    && ! (str_contains($user->photo_url, 'api.telegram.org') && str_contains($user->photo_url, '/file/bot'))
-                    ? $user->photo_url
-                    : ($primary?->id ? url('/api/media/photos/'.$primary->id) : null)),
+            'photo_url' => $primary?->image_url ?? $user->photo_url,
             'photos' => $user->photos
                 ->where('status', 'approved')
                 ->values()

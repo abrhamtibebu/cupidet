@@ -1,36 +1,68 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronRight, LogOut, Trash2 } from 'lucide-react'
+import {
+  Bell,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Heart,
+  LogOut,
+  MessageCircle,
+  Trash2,
+  UserRound,
+} from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { resolveMediaUrl } from '../lib/media'
 import { telegramHaptic } from '../lib/telegram'
 import { BRAND_NAME } from '../components/Brand'
 import { BottomNav } from '../components/BottomNav'
-import { MediaImage } from '../components/MediaImage'
 import { Spinner } from '../components/Loading'
 
 type NotifyKey = 'notify_matches' | 'notify_likes' | 'notify_messages'
 
-const NOTIFY_ITEMS: { key: NotifyKey; label: string }[] = [
-  { key: 'notify_matches', label: 'Matches' },
-  { key: 'notify_likes', label: 'Likes' },
-  { key: 'notify_messages', label: 'Messages' },
+const NOTIFY_ITEMS: {
+  key: NotifyKey
+  label: string
+  hint: string
+  Icon: typeof Bell
+}[] = [
+  { key: 'notify_matches', label: 'Matches', hint: 'Mutual likes', Icon: Heart },
+  { key: 'notify_likes', label: 'Likes', hint: 'Someone liked you', Icon: Bell },
+  { key: 'notify_messages', label: 'Messages', hint: 'New chat replies', Icon: MessageCircle },
 ]
 
 const ease = [0.22, 1, 0.36, 1] as const
 
 function Switch({ on }: { on: boolean }) {
   return (
-    <span className={`settings-switch ${on ? 'is-on' : ''}`} aria-hidden>
-      <span className="settings-switch-knob" />
+    <span
+      className={`relative h-7 w-[46px] shrink-0 rounded-full transition-colors duration-200 ${
+        on ? 'bg-brand' : 'bg-white/10'
+      }`}
+      aria-hidden
+    >
+      <span
+        className={`absolute top-[3px] h-[22px] w-[22px] rounded-full bg-white transition-transform duration-200 ${
+          on ? 'translate-x-[21px]' : 'translate-x-[3px]'
+        }`}
+      />
     </span>
+  )
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
+      {children}
+    </p>
   )
 }
 
 export function SettingsPage() {
   const { user, refresh, logout } = useAuth()
-  const [toast, setToast] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [hiding, setHiding] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -43,19 +75,23 @@ export function SettingsPage() {
   }
 
   const primary = user?.photos?.find((p) => p.is_primary) || user?.photos?.[0]
+  const avatar = resolveMediaUrl(primary?.image_url || user?.photo_url, '/mingle_251_icon.png')
   const displayName = user?.profile?.name || user?.first_name || 'Your profile'
-  const handle = user?.username ? `@${user.username}` : null
-  const location = user?.profile?.location?.trim() || null
+  const handle = user?.username
+    ? `@${user.username}`
+    : user?.telegram_id
+      ? `Telegram · ${user.telegram_id}`
+      : 'Account'
   const isHidden = user?.status === 'hidden'
   const busy = hiding || deleting || signingOut || savingNotify !== null
 
   useEffect(() => {
     if (!toast) return
-    const t = window.setTimeout(() => setToast(null), 2800)
-    return () => window.clearTimeout(t)
+    const id = window.setTimeout(() => setToast(null), 2800)
+    return () => window.clearTimeout(id)
   }, [toast])
 
-  const showToast = (kind: 'ok' | 'err', text: string) => setToast({ kind, text })
+  const flash = (type: 'ok' | 'err', text: string) => setToast({ type, text })
 
   const toggleHide = async () => {
     setHiding(true)
@@ -63,10 +99,10 @@ export function SettingsPage() {
       const res = await api.hideProfile()
       await refresh()
       telegramHaptic('success')
-      showToast('ok', res.status === 'hidden' ? 'Hidden from discovery' : 'Visible in discovery')
+      flash('ok', res.status === 'hidden' ? 'Hidden from discovery' : 'Visible in discovery again')
     } catch (e) {
       telegramHaptic('error')
-      showToast('err', e instanceof Error ? e.message : 'Could not update visibility')
+      flash('err', e instanceof Error ? e.message : 'Could not update visibility')
     } finally {
       setHiding(false)
     }
@@ -78,10 +114,10 @@ export function SettingsPage() {
     try {
       await api.updateNotifications({ [key]: next })
       await refresh()
-      telegramHaptic('success')
+      telegramHaptic('selection')
     } catch (e) {
       telegramHaptic('error')
-      showToast('err', e instanceof Error ? e.message : 'Could not update notifications')
+      flash('err', e instanceof Error ? e.message : 'Could not update notifications')
     } finally {
       setSavingNotify(null)
     }
@@ -96,7 +132,7 @@ export function SettingsPage() {
       logout()
     } catch (e) {
       telegramHaptic('error')
-      showToast('err', e instanceof Error ? e.message : 'Could not delete account')
+      flash('err', e instanceof Error ? e.message : 'Could not delete account')
       setDeleting(false)
     }
   }
@@ -111,19 +147,34 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="settings-page app-shell pb-28">
-      <div className="settings-atmosphere" aria-hidden />
+    <div className="app-shell relative overflow-hidden pb-28">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,_rgba(254,52,97,0.14),_transparent_70%)]"
+        aria-hidden
+      />
 
       <motion.header
-        className="relative mb-7"
+        className="relative mb-8"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease }}
       >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand">{BRAND_NAME}</p>
-        <h1 className="mt-1.5 font-display text-[2.35rem] leading-[0.95] tracking-tight text-white">
-          Settings
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand">
+              {BRAND_NAME}
+            </p>
+            <h1 className="mt-2 font-display text-[2.35rem] leading-[0.95] tracking-tight text-white">
+              Settings
+            </h1>
+          </div>
+          <img
+            src="/mingle_251_icon.png"
+            alt=""
+            className="mt-1 h-11 w-11 object-contain opacity-90"
+            draggable={false}
+          />
+        </div>
       </motion.header>
 
       <AnimatePresence>
@@ -134,7 +185,7 @@ export function SettingsPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             className={`relative mb-5 text-sm ${
-              toast.kind === 'err' ? 'text-red-300' : 'text-brand'
+              toast.type === 'err' ? 'text-red-300' : 'text-brand'
             }`}
           >
             {toast.text}
@@ -147,57 +198,36 @@ export function SettingsPage() {
         className="relative mb-10"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05, duration: 0.45, ease }}
+        transition={{ delay: 0.04, duration: 0.45, ease }}
       >
-        <Link to="/profile" className={`settings-identity ${busy ? 'pointer-events-none opacity-50' : ''}`}>
-          <MediaImage
-            src={primary?.image_url || user?.photo_url}
-            fallbacks={[user?.photo_url, primary?.image_url]}
-            alt=""
-            className="settings-identity-photo"
-          />
+        <Link
+          to="/profile"
+          className={`group flex items-center gap-4 ${busy ? 'pointer-events-none opacity-50' : ''}`}
+        >
+          <div className="relative shrink-0">
+            <img
+              src={avatar}
+              alt=""
+              className="h-[72px] w-[72px] rounded-full object-cover"
+            />
+            <span
+              className={`absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full ring-2 ring-black ${
+                isHidden ? 'bg-amber-400' : 'bg-brand'
+              }`}
+              title={isHidden ? 'Hidden' : 'Visible'}
+            />
+          </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[1.65rem] leading-none tracking-tight text-white">
+            <p className="truncate text-xl font-semibold tracking-tight text-white group-hover:text-white/95">
               {displayName}
             </p>
-            <p className="mt-2 truncate text-sm text-white/45">
-              {[handle, location].filter(Boolean).join(' · ') || 'Edit your profile'}
-            </p>
-            <p className="mt-3 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand">
+            <p className="mt-0.5 truncate text-sm text-muted">{handle}</p>
+            <p className="mt-2 text-xs font-medium tracking-wide text-brand/90">
               View profile
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+              <ChevronRight className="ml-0.5 inline h-3.5 w-3.5 translate-y-[-1px]" strokeWidth={2} />
             </p>
           </div>
         </Link>
-      </motion.section>
-
-      {/* Discovery */}
-      <motion.section
-        className="relative mb-10"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.45, ease }}
-      >
-        <h2 className="settings-section-title">Discovery</h2>
-        <p className="mt-1 max-w-[22rem] text-sm leading-relaxed text-muted">
-          Control whether people can find you while you take a break.
-        </p>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void toggleHide()}
-          className="settings-discovery mt-5 disabled:opacity-50"
-        >
-          <div className="min-w-0 flex-1 text-left">
-            <p className="text-[15px] font-semibold text-white">
-              {hiding ? 'Updating…' : isHidden ? 'Profile is hidden' : 'Profile is visible'}
-            </p>
-            <p className="mt-1 text-xs text-white/40">
-              {isHidden ? 'You won’t appear in Discover' : 'Showing in Discover for others'}
-            </p>
-          </div>
-          {hiding ? <Spinner className="h-4 w-4 text-brand" /> : <Switch on={!isHidden} />}
-        </button>
       </motion.section>
 
       {/* Notifications */}
@@ -205,13 +235,10 @@ export function SettingsPage() {
         className="relative mb-10"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.45, ease }}
+        transition={{ delay: 0.08, duration: 0.45, ease }}
       >
-        <h2 className="settings-section-title">Telegram alerts</h2>
-        <p className="mt-1 text-sm leading-relaxed text-muted">
-          Stay notified when you’re away from the app.
-        </p>
-        <ul className="settings-list mt-5">
+        <SectionLabel>Notifications</SectionLabel>
+        <ul className="divide-y divide-white/[0.06]">
           {NOTIFY_ITEMS.map((item) => {
             const on = notify[item.key]
             const saving = savingNotify === item.key
@@ -221,9 +248,15 @@ export function SettingsPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => void toggleNotify(item.key)}
-                  className="settings-row disabled:opacity-50"
+                  className="flex w-full items-center gap-3.5 py-4 text-left disabled:opacity-50"
                 >
-                  <span className="text-[15px] font-medium text-white">{item.label}</span>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.04] text-brand">
+                    <item.Icon size={17} strokeWidth={1.8} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-medium text-white">{item.label}</span>
+                    <span className="mt-0.5 block text-xs text-muted">{item.hint}</span>
+                  </span>
                   {saving ? <Spinner className="h-4 w-4 text-brand" /> : <Switch on={on} />}
                   <span className="sr-only">
                     {item.label} {on ? 'on' : 'off'}
@@ -233,6 +266,64 @@ export function SettingsPage() {
             )
           })}
         </ul>
+        <p className="mt-1 text-xs leading-relaxed text-white/30">
+          Delivered via Telegram when you’re away.
+        </p>
+      </motion.section>
+
+      {/* Privacy */}
+      <motion.section
+        className="relative mb-10"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12, duration: 0.45, ease }}
+      >
+        <SectionLabel>Privacy</SectionLabel>
+        <div className="divide-y divide-white/[0.06]">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void toggleHide()}
+            className="flex w-full items-center gap-3.5 py-4 text-left disabled:opacity-50"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.04] text-brand">
+              {isHidden ? (
+                <EyeOff size={17} strokeWidth={1.8} aria-hidden />
+              ) : (
+                <Eye size={17} strokeWidth={1.8} aria-hidden />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-medium text-white">
+                {hiding
+                  ? isHidden
+                    ? 'Unhiding…'
+                    : 'Hiding…'
+                  : isHidden
+                    ? 'Unhide profile'
+                    : 'Hide profile'}
+              </span>
+              <span className="mt-0.5 block text-xs text-muted">
+                {isHidden ? 'Invisible in discovery right now' : 'Pause discovery anytime'}
+              </span>
+            </span>
+            {hiding ? <Spinner className="h-4 w-4 text-brand" /> : <Switch on={isHidden} />}
+          </button>
+
+          <Link
+            to="/profile"
+            className={`flex w-full items-center gap-3.5 py-4 ${busy ? 'pointer-events-none opacity-50' : ''}`}
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.04] text-white/45">
+              <UserRound size={17} strokeWidth={1.8} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-medium text-white">Edit profile</span>
+              <span className="mt-0.5 block text-xs text-muted">Photos, bio, preferences</span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-white/20" strokeWidth={1.8} aria-hidden />
+          </Link>
+        </div>
       </motion.section>
 
       {/* Session */}
@@ -240,40 +331,64 @@ export function SettingsPage() {
         className="relative mb-12"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.45, ease }}
+        transition={{ delay: 0.16, duration: 0.45, ease }}
       >
-        <button
-          type="button"
-          disabled={busy && !signingOut}
-          onClick={() => void signOut()}
-          className="settings-text-action disabled:opacity-50"
-        >
-          <LogOut className="h-4 w-4" strokeWidth={1.8} aria-hidden />
-          {signingOut ? 'Signing out…' : 'Sign out'}
-        </button>
+        <SectionLabel>Session</SectionLabel>
+        <div className="divide-y divide-white/[0.06]">
+          <button
+            type="button"
+            disabled={busy && !signingOut}
+            onClick={() => void signOut()}
+            className="flex w-full items-center gap-3.5 py-4 text-left disabled:opacity-50"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.04] text-white/45">
+              <LogOut size={17} strokeWidth={1.8} aria-hidden />
+            </span>
+            <span className="flex-1 text-[15px] font-medium text-white/90">
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </span>
+            {signingOut ? <Spinner className="h-4 w-4 text-muted" /> : null}
+          </button>
 
-        <button
-          type="button"
-          disabled={busy && !deleting}
-          onClick={() => void deleteAccount()}
-          className="settings-text-action settings-text-danger mt-4 disabled:opacity-50"
-        >
-          <Trash2 className="h-4 w-4" strokeWidth={1.8} aria-hidden />
-          {deleting ? 'Deleting account…' : 'Delete account'}
-        </button>
+          <button
+            type="button"
+            disabled={busy && !deleting}
+            onClick={() => void deleteAccount()}
+            className="flex w-full items-center gap-3.5 py-4 text-left disabled:opacity-50"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-500/10 text-red-400/90">
+              <Trash2 size={17} strokeWidth={1.8} aria-hidden />
+            </span>
+            <span className="flex-1 text-[15px] font-medium text-red-300/95">
+              {deleting ? 'Deleting account…' : 'Delete account'}
+            </span>
+          </button>
+        </div>
       </motion.section>
 
-      <footer className="relative mb-2 flex items-center justify-center gap-2.5 opacity-55">
-        <img src="/mingle_251_icon.png" alt="" className="h-7 w-7 object-contain" draggable={false} />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">{BRAND_NAME}</span>
-      </footer>
+      <motion.footer
+        className="relative mb-2 flex flex-col items-center gap-2.5"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.28, duration: 0.5 }}
+      >
+        <img
+          src="/mingle_251_icon.png"
+          alt=""
+          className="h-8 w-8 object-contain opacity-40"
+          draggable={false}
+        />
+        <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-white/25">
+          {BRAND_NAME}
+        </p>
+      </motion.footer>
 
       {deleting && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-6 backdrop-blur-[2px]">
           <div className="w-full max-w-sm text-center">
             <Spinner className="mx-auto h-8 w-8 text-red-300" />
-            <p className="mt-5 font-display text-2xl text-white">Deleting account</p>
-            <p className="mt-2 text-sm text-muted">Removing your data from {BRAND_NAME}…</p>
+            <p className="mt-5 font-display text-2xl text-white">Deleting account…</p>
+            <p className="mt-2 text-sm text-muted">Removing your profile and matches.</p>
           </div>
         </div>
       )}

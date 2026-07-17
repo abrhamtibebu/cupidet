@@ -7,7 +7,7 @@ import { useNavBadges } from '../lib/navBadges'
 import { pollMs } from '../lib/perf'
 import type { ChatMessage, MatchItem } from '../types'
 import { IconBack } from '../components/Icons'
-import { MediaImage } from '../components/MediaImage'
+import { resolveMediaUrl } from '../lib/media'
 
 function StatusTicks({ status }: { status?: ChatMessage['status'] }) {
   if (!status || status === 'received') return null
@@ -486,11 +486,11 @@ export function ChatPage() {
           </div>
         ) : peer ? (
           <Link to="/messages" className="flex min-w-0 flex-1 items-center gap-3">
-            <MediaImage
-              src={peer.photo_url}
-              fallbacks={peer.photos?.map((p) => p.image_url)}
+            <img
+              src={resolveMediaUrl(peer.photo_url, 'https://i.pravatar.cc/80')}
               alt={peer.name}
               className="h-10 w-10 rounded-full object-cover"
+              decoding="async"
             />
             <div className="min-w-0">
               <p className="truncate font-semibold">{peer.name}</p>

@@ -50,15 +50,11 @@ class VerificationRequest extends Model
                         return Storage::disk('public')->url($this->path);
                     }
                 } catch (\Throwable) {
-                    // Fall through
+                    // Fall back to the stored URL.
                 }
             }
 
-            if (is_string($value) && str_starts_with($value, 'http') && ! str_contains($value, '/storage/')) {
-                return $value;
-            }
-
-            return null;
+            return $value;
         });
     }
 }

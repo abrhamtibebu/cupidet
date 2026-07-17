@@ -2,9 +2,9 @@ import { useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { DiscoverCard } from '../types'
 import { openTelegramChat } from '../lib/telegram'
+import { resolveMediaUrl } from '../lib/media'
 import { pickConversationStarters } from '../lib/conversationStarters'
 import { IconLike } from './Icons'
-import { useMediaSrc } from './MediaImage'
 
 type Props = {
   open: boolean
@@ -21,11 +21,8 @@ const easeOut = [0.22, 1, 0.36, 1] as const
 
 export function MatchModal({ open, matchUser, myPhoto, myName = 'You', onChat, onContinue }: Props) {
   const telegramUsername = matchUser?.username?.replace(/^@/, '')
-  const me = useMediaSrc({ src: myPhoto })
-  const them = useMediaSrc({
-    src: matchUser?.photo_url,
-    fallbacks: matchUser?.photos?.map((p) => p.image_url),
-  })
+  const meSrc = resolveMediaUrl(myPhoto, 'https://i.pravatar.cc/240?u=me')
+  const themSrc = resolveMediaUrl(matchUser?.photo_url, 'https://i.pravatar.cc/240')
   const starters = useMemo(
     () => (matchUser ? pickConversationStarters(3, String(matchUser.id)) : []),
     [matchUser],
@@ -84,21 +81,17 @@ export function MatchModal({ open, matchUser, myPhoto, myName = 'You', onChat, o
           <div className="relative z-10 flex w-full max-w-sm flex-col items-center">
             <div className="relative mb-6 flex h-[7.5rem] w-[13.5rem] items-center justify-center">
               <motion.img
-                src={me.src}
+                src={meSrc}
                 alt={myName}
                 className="absolute left-0 h-[6.75rem] w-[6.75rem] rounded-full object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-[3px] ring-black"
-                referrerPolicy="no-referrer"
-                onError={me.onError}
                 initial={{ x: -56, opacity: 0, scale: 0.82 }}
                 animate={{ x: 0, opacity: 1, scale: 1 }}
                 transition={{ ...softSpring, delay: 0.02 }}
               />
               <motion.img
-                src={them.src}
+                src={themSrc}
                 alt={matchUser.name}
                 className="absolute right-0 h-[6.75rem] w-[6.75rem] rounded-full object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-[3px] ring-black"
-                referrerPolicy="no-referrer"
-                onError={them.onError}
                 initial={{ x: 56, opacity: 0, scale: 0.82 }}
                 animate={{ x: 0, opacity: 1, scale: 1 }}
                 transition={{ ...softSpring, delay: 0.05 }}

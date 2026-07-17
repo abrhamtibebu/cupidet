@@ -3,7 +3,7 @@ import { api } from '../lib/api'
 import type { MatchItem } from '../types'
 import { BottomNav } from '../components/BottomNav'
 import { IconLike } from '../components/Icons'
-import { MediaImage } from '../components/MediaImage'
+import { resolveMediaUrl } from '../lib/media'
 
 export function MatchesPage() {
   const [matches, setMatches] = useState<MatchItem[]>([])
@@ -42,12 +42,12 @@ export function MatchesPage() {
                 else if (match.user.username) window.open(`https://t.me/${match.user.username}`, '_blank')
               }}
             >
-              <MediaImage
-                src={match.user.photo_url}
-                fallbacks={match.user.photos?.map((p) => p.image_url)}
+              <img
+                src={resolveMediaUrl(match.user.photo_url, 'https://i.pravatar.cc/400')}
                 alt={match.user.name}
                 className="aspect-[3/4] w-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
               {typeof match.user.compatibility_score === 'number' && (
