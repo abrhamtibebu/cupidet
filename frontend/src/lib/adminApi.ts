@@ -78,6 +78,20 @@ export type AdminReportRow = {
   created_at: string | null
 }
 
+export type AdminFeedbackRow = {
+  id: number
+  category: string
+  rating: number | null
+  message: string
+  page: string | null
+  status: string
+  notes: string | null
+  user: string | null
+  username: string | null
+  created_at: string | null
+  reviewed_at: string | null
+}
+
 export type AdminTelegramGroup = {
   id: number
   chat_id: number
@@ -235,6 +249,10 @@ export const adminApi = {
     request<{ data: AdminReportRow[]; meta: AdminMeta }>(`/reports${qs(params || {})}`),
   updateReport: (id: number, body: { status?: string; notes?: string }) =>
     request(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  feedback: (params?: { status?: string; category?: string; page?: number; per_page?: number }) =>
+    request<{ data: AdminFeedbackRow[]; meta: AdminMeta }>(`/feedback${qs(params || {})}`),
+  updateFeedback: (id: number, body: { status?: string; notes?: string }) =>
+    request(`/feedback/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   telegramGroups: (params?: { active_only?: boolean }) =>
     request<{ data: AdminTelegramGroup[]; meta: { total: number; active: number } }>(
       `/telegram-groups${qs({ active_only: params?.active_only ? 1 : undefined })}`,

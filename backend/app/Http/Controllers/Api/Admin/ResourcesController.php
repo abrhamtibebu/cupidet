@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Feedback;
 use App\Models\MatchModel;
 use App\Models\Photo;
 use App\Models\Report;
@@ -253,6 +254,66 @@ class ResourcesController extends Controller
             'id' => $report->id,
             'status' => $report->status,
             'notes' => $report->notes,
+        ]]);
+    }
+
+    public function feedback(Request $request): JsonResponse
+    {
+        $status = $request->string('status')->toString();
+        $category = $request->string('category')->toString();
+
+        $query = Feedback::query()
+            ->with(['user.profile'])
+            ->latest();
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($category) {
+            $query->where('category', $category);
+        }
+
+        $paginator = $this->paginate($query, $request, 50);
+
+        $data = collect($paginator->items())->map(fn (Feedback $feedback) => [
+            'id' => $feedback->id,
+            'category' => $feedback->category,
+            'rating' => $feedback->rating,
+            'message' => $feedback->message,
+            'page' => $feedback->page,
+            'status' => $feedback->status,
+            'notes' => $feedback->notes,
+            'user' => $feedback->user?->profile?->name ?? $feedback->user?->username,
+            'username' => $feedback->user?->username,
+            'created_at' => optional($feedback->created_at)?->toIso8601String(),
+            'reviewed_at' => optional($feedback->reviewed_at)?->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'data' => $data,
+            'meta' => $this->meta($paginator),
+        ]);
+    }
+
+    public function updateFeedback(Request $request, Feedback $feedback): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['sometimes', 'in:open,reviewing,planned,resolved,dismissed'],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+        ]);
+
+        $feedback->fill($data);
+        if (array_key_exists('status', $data) && $data['status'] !== 'open') {
+            $feedback->reviewed_at = now();
+        }
+        $feedback->save();
+
+        return response()->json(['feedback' => [
+            'id' => $feedback->id,
+            'status' => $feedback->status,
+            'notes' => $feedback->notes,
+            'reviewed_at' => optional($feedback->reviewed_at)?->toIso8601String(),
         ]]);
     }
 

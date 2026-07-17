@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\ResourcesController as AdminResourcesControll
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\DiscoverController;
+use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SafetyController;
@@ -45,6 +46,8 @@ Route::prefix('admin')->group(function () {
         Route::patch('/verifications/{verification}', [AdminResourcesController::class, 'updateVerification']);
         Route::get('/reports', [AdminResourcesController::class, 'reports']);
         Route::patch('/reports/{report}', [AdminResourcesController::class, 'updateReport']);
+        Route::get('/feedback', [AdminResourcesController::class, 'feedback']);
+        Route::patch('/feedback/{feedback}', [AdminResourcesController::class, 'updateFeedback']);
 
         Route::get('/telegram-groups', [AdminBroadcastController::class, 'groups']);
         Route::patch('/telegram-groups/{telegramGroup}', [AdminBroadcastController::class, 'updateGroup']);
@@ -87,6 +90,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
 
         Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
+        Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:10,10');
 
         Route::post('/report', [SafetyController::class, 'report'])->middleware('throttle:20,1');
         Route::post('/block', [SafetyController::class, 'block']);

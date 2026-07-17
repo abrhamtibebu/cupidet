@@ -9,6 +9,8 @@ import {
   Heart,
   LogOut,
   MessageCircle,
+  Send,
+  SmilePlus,
   Trash2,
   UserRound,
 } from 'lucide-react'
@@ -21,6 +23,7 @@ import { BottomNav } from '../components/BottomNav'
 import { Spinner } from '../components/Loading'
 
 type NotifyKey = 'notify_matches' | 'notify_likes' | 'notify_messages'
+type FeedbackCategory = 'general' | 'bug' | 'idea' | 'confusing' | 'success'
 
 const NOTIFY_ITEMS: {
   key: NotifyKey
@@ -67,6 +70,11 @@ export function SettingsPage() {
   const [deleting, setDeleting] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [savingNotify, setSavingNotify] = useState<NotifyKey | null>(null)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>('general')
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null)
+  const [feedbackMessage, setFeedbackMessage] = useState('')
+  const [sendingFeedback, setSendingFeedback] = useState(false)
 
   const notify = {
     notify_matches: user?.notify_matches !== false,
@@ -83,7 +91,7 @@ export function SettingsPage() {
       ? `Telegram · ${user.telegram_id}`
       : 'Account'
   const isHidden = user?.status === 'hidden'
-  const busy = hiding || deleting || signingOut || savingNotify !== null
+  const busy = hiding || deleting || signingOut || savingNotify !== null || sendingFeedback
 
   useEffect(() => {
     if (!toast) return
@@ -143,6 +151,36 @@ export function SettingsPage() {
       logout()
     } finally {
       setSigningOut(false)
+    }
+  }
+
+  const submitFeedback = async () => {
+    const message = feedbackMessage.trim()
+    if (message.length < 3) {
+      flash('err', 'Tell us a little more first')
+      return
+    }
+
+    setSendingFeedback(true)
+    try {
+      await api.sendFeedback({
+        category: feedbackCategory,
+        rating: feedbackRating,
+        message,
+        page: window.location.pathname,
+        app_version: import.meta.env.VITE_APP_VERSION as string | undefined,
+      })
+      telegramHaptic('success')
+      flash('ok', 'Thank you — feedback sent')
+      setFeedbackOpen(false)
+      setFeedbackCategory('general')
+      setFeedbackRating(null)
+      setFeedbackMessage('')
+    } catch (e) {
+      telegramHaptic('error')
+      flash('err', e instanceof Error ? e.message : 'Could not send feedback')
+    } finally {
+      setSendingFeedback(false)
     }
   }
 
@@ -326,6 +364,31 @@ export function SettingsPage() {
         </div>
       </motion.section>
 
+      {/* Soft launch feedback */}
+      <motion.section
+        className="relative mb-10"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.14, duration: 0.45, ease }}
+      >
+        <SectionLabel>Soft launch</SectionLabel>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setFeedbackOpen(true)}
+          className="flex w-full items-center gap-3.5 py-4 text-left disabled:opacity-50"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.04] text-brand">
+            <SmilePlus size={17} strokeWidth={1.8} aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium text-white">Send feedback</span>
+            <span className="mt-0.5 block text-xs text-muted">Bug, idea, confusion, or quick rating</span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-white/20" strokeWidth={1.8} aria-hidden />
+        </button>
+      </motion.section>
+
       {/* Session */}
       <motion.section
         className="relative mb-12"
@@ -392,6 +455,105 @@ export function SettingsPage() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {feedbackOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 grid place-items-end bg-black/70 p-0 backdrop-blur-[2px] sm:place-items-center sm:p-5"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="w-full rounded-t-[2rem] border border-white/10 bg-[#0b0b0b] p-5 shadow-2xl sm:max-w-md sm:rounded-[2rem]"
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              transition={{ duration: 0.25, ease }}
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand">
+                    Soft launch
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold text-white">How’s Mingle 251?</h2>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full bg-white/10 px-3 py-1.5 text-sm text-white/70"
+                  onClick={() => setFeedbackOpen(false)}
+                  disabled={sendingFeedback}
+                >
+                  Close
+                </button>
+              </div>
+
+              <label className="mb-3 block text-sm font-medium text-white/80">
+                What kind of feedback?
+                <select
+                  value={feedbackCategory}
+                  onChange={(e) => setFeedbackCategory(e.target.value as FeedbackCategory)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
+                >
+                  <option value="general">General feedback</option>
+                  <option value="bug">Bug or broken flow</option>
+                  <option value="idea">Feature idea</option>
+                  <option value="confusing">Something confusing</option>
+                  <option value="success">Something you liked</option>
+                </select>
+              </label>
+
+              <div className="mb-3">
+                <p className="mb-2 text-sm font-medium text-white/80">Quick rating</p>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setFeedbackRating(rating === feedbackRating ? null : rating)}
+                      className={`grid h-10 w-10 place-items-center rounded-full border text-sm font-semibold ${
+                        rating === feedbackRating
+                          ? 'border-brand bg-brand text-black'
+                          : 'border-white/10 bg-white/[0.04] text-white/70'
+                      }`}
+                    >
+                      {rating}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="block text-sm font-medium text-white/80">
+                Message
+                <textarea
+                  value={feedbackMessage}
+                  onChange={(e) => setFeedbackMessage(e.target.value)}
+                  rows={5}
+                  maxLength={2000}
+                  placeholder="What should we improve before launch?"
+                  className="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none placeholder:text-white/25"
+                />
+              </label>
+
+              <button
+                type="button"
+                disabled={sendingFeedback}
+                onClick={() => void submitFeedback()}
+                className="btn-lime mt-4 w-full py-3 disabled:opacity-60"
+              >
+                {sendingFeedback ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" aria-hidden />
+                    Send feedback
+                  </>
+                )}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav />
     </div>

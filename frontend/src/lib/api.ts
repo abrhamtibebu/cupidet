@@ -189,6 +189,17 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(prefs),
     }),
+  sendFeedback: (body: {
+    category: 'general' | 'bug' | 'idea' | 'confusing' | 'success'
+    rating?: number | null
+    message: string
+    page?: string
+    app_version?: string
+  }) =>
+    request<{ feedback: { id: number; status: string } }>('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   report: (userId: number, reason: string, details?: string) =>
     request('/report', {
       method: 'POST',

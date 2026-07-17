@@ -104,12 +104,19 @@ class BroadcastController extends Controller
             ], 422);
         }
 
-        BroadcastTelegramGroupsJob::dispatch(
+        $job = new BroadcastTelegramGroupsJob(
             $text,
             $chatIds,
             (bool) ($data['with_app_button'] ?? true),
             $photoPath,
         );
+
+        // Small batches send inline so delivery never depends on a queue worker.
+        if ($count <= 25) {
+            dispatch_sync($job);
+        } else {
+            dispatch($job);
+        }
 
         return response()->json([
             'queued' => true,
