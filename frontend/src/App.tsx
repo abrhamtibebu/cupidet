@@ -1,11 +1,12 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { Suspense, lazy, useState, type ReactNode } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react'
 import { AuthProvider } from './components/AuthProvider'
 import { BrandLoadingScreen } from './components/BrandLoadingScreen'
 import { TelegramBackButton } from './components/TelegramBackButton'
 import { useAuth } from './lib/auth'
 import { NavBadgeProvider } from './lib/navBadges'
 import { AdminAuthProvider } from './lib/adminAuth'
+import { getTelegramStartParam, routeFromTelegramStartParam } from './lib/telegram'
 import { WelcomeScreen } from './pages/Welcome'
 import { AuthPage } from './pages/Auth'
 import { OnboardingPage } from './pages/Onboarding'
@@ -87,6 +88,7 @@ function Gate() {
   return (
     <NavBadgeProvider>
       <TelegramBackButton />
+      <TelegramStartParamRedirect />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Navigate to="/discover" replace />} />
@@ -102,6 +104,26 @@ function Gate() {
       </Suspense>
     </NavBadgeProvider>
   )
+}
+
+function TelegramStartParamRedirect() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    const startParam = getTelegramStartParam()
+    const target = routeFromTelegramStartParam(startParam)
+    if (!target || !startParam) return
+
+    const key = `cupid_start_nav_${startParam}`
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+
+    if (location.pathname === target) return
+    navigate(target, { replace: true })
+  }, [navigate, location.pathname])
+
+  return null
 }
 
 function DatingApp() {

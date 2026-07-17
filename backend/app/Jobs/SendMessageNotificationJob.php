@@ -11,7 +11,14 @@ class SendMessageNotificationJob implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 3;
+
     public function __construct(public int $messageId) {}
+
+    public function backoff(): array
+    {
+        return [5, 15, 45];
+    }
 
     public function handle(TelegramNotifier $notifier): void
     {
@@ -34,7 +41,7 @@ class SendMessageNotificationJob implements ShouldQueue
             $recipient,
             $message->match_id,
             $sender->displayName(),
-            (string) $message->body
+            (string) ($message->body ?? '')
         );
     }
 }

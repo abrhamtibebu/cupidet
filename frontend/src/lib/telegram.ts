@@ -322,7 +322,7 @@ export function getTelegramUserUnsafe(): TelegramUnsafeUser | null {
   return getLegacyWebApp()?.initDataUnsafe?.user ?? null
 }
 
-/** Mini App start_param from broadcast links (?startapp=bc123). */
+/** Mini App start_param from broadcast / notification links (?startapp=…). */
 export function getTelegramStartParam(): string | null {
   const initData = getTelegramInitData()
   if (initData) {
@@ -333,6 +333,20 @@ export function getTelegramStartParam(): string | null {
 
   const unsafe = getLegacyWebApp()?.initDataUnsafe as { start_param?: string } | undefined
   return unsafe?.start_param ?? null
+}
+
+/**
+ * Map Telegram start_param to an in-app route.
+ * Supported: bc* (broadcast tracking only), chat{id}, likes, matches, messages
+ */
+export function routeFromTelegramStartParam(startParam: string | null | undefined): string | null {
+  if (!startParam) return null
+  if (startParam.startsWith('bc')) return null
+  if (startParam === 'likes' || startParam === 'matches') return '/likes'
+  if (startParam === 'messages') return '/messages'
+  const chat = /^chat(\d+)$/i.exec(startParam)
+  if (chat) return `/chat/${chat[1]}`
+  return null
 }
 
 export function getTelegramThemeParams(): Record<string, string> {

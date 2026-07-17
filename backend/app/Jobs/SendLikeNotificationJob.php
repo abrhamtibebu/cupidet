@@ -11,11 +11,18 @@ class SendLikeNotificationJob implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 3;
+
     public function __construct(
         public int $receiverId,
         public int $senderId,
         public bool $super = false,
     ) {}
+
+    public function backoff(): array
+    {
+        return [5, 15, 45];
+    }
 
     public function handle(TelegramNotifier $notifier): void
     {

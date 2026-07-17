@@ -145,10 +145,18 @@ class DiscoveryService
                 ['user_one' => $one, 'user_two' => $two],
                 ['matched_at' => now()]
             );
-            SendMatchNotificationJob::dispatch($match->id);
+            try {
+                SendMatchNotificationJob::dispatch($match->id);
+            } catch (\Throwable) {
+                // Queue unavailable — match is still created.
+            }
             $receiver->load(['profile', 'photos', 'interests', 'primaryPhoto', 'prompts']);
         } else {
-            SendLikeNotificationJob::dispatch($receiver->id, $sender->id, $type === 'super');
+            try {
+                SendLikeNotificationJob::dispatch($receiver->id, $sender->id, $type === 'super');
+            } catch (\Throwable) {
+                // Queue unavailable — like is still saved.
+            }
         }
 
         return [

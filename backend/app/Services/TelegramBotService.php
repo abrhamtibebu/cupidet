@@ -162,7 +162,12 @@ class TelegramBotService
         }
 
         try {
-            $pending = Http::timeout(15);
+            // Telegram expects JSON (or a JSON string for reply_markup). Nested form arrays fail silently.
+            if (isset($payload['reply_markup']) && is_array($payload['reply_markup'])) {
+                $payload['reply_markup'] = json_encode($payload['reply_markup'], JSON_UNESCAPED_UNICODE);
+            }
+
+            $pending = Http::timeout(15)->asForm();
             if (app()->environment('local')) {
                 $pending = $pending->withoutVerifying();
             }
@@ -221,7 +226,7 @@ class TelegramBotService
         return ['ok' => false, 'error' => $friendly, 'permanent' => $permanent];
     }
 
-    public function webAppKeyboard(string $text = 'Open Mingle 251'): array
+    public function webAppKeyboard(string $text = 'Open Mingle 251', ?string $path = null): array
     {
         $url = rtrim((string) config('services.telegram.mini_app_url'), '/');
         // Guard against stale tunnel URLs still set on the server
@@ -229,11 +234,16 @@ class TelegramBotService
             $url = 'https://mingle-251.onrender.com';
         }
 
+        $suffix = '/';
+        if ($path !== null && $path !== '' && $path !== '/') {
+            $suffix = '/'.ltrim($path, '/');
+        }
+
         return [
             'inline_keyboard' => [[
                 [
                     'text' => $text,
-                    'web_app' => ['url' => $url.'/'],
+                    'web_app' => ['url' => $url.$suffix],
                 ],
             ]],
         ];
