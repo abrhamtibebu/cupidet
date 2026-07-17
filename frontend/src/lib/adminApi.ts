@@ -99,6 +99,7 @@ export type AdminTelegramGroup = {
   type: string
   username: string | null
   is_active: boolean
+  last_error?: string | null
   joined_at: string | null
   left_at: string | null
   updated_at: string | null
@@ -275,10 +276,13 @@ export const adminApi = {
     form.append('with_app_button', payload.withAppButton === false ? '0' : '1')
     payload.chatIds?.forEach((id) => form.append('chat_ids[]', String(id)))
     if (payload.image) form.append('image', payload.image)
-    return request<{ queued: boolean; count: number; has_photo: boolean }>(
-      '/telegram-broadcast',
-      { method: 'POST', body: form },
-      60000,
-    )
+    return request<{
+      queued: boolean
+      count: number
+      sent?: number
+      failed?: number
+      has_photo: boolean
+      results?: { chat_id: number; title: string | null; ok: boolean; error: string | null }[]
+    }>('/telegram-broadcast', { method: 'POST', body: form }, 60000)
   },
 }

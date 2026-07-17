@@ -28,6 +28,7 @@ class BroadcastController extends Controller
             'type' => $g->type,
             'username' => $g->username,
             'is_active' => (bool) $g->is_active,
+            'last_error' => $g->last_error,
             'joined_at' => optional($g->joined_at)?->toIso8601String(),
             'left_at' => optional($g->left_at)?->toIso8601String(),
             'updated_at' => optional($g->updated_at)?->toIso8601String(),
@@ -121,10 +122,20 @@ class BroadcastController extends Controller
 
         // Small batches send inline so delivery never depends on a queue worker.
         if ($count <= 25) {
-            dispatch_sync($job);
-        } else {
-            dispatch($job);
+            /** @var array{sent: int, failed: int, results: list<array{chat_id: int, title: ?string, ok: bool, error: ?string}>} $outcome */
+            $outcome = dispatch_sync($job);
+
+            return response()->json([
+                'queued' => false,
+                'count' => $count,
+                'sent' => $outcome['sent'] ?? 0,
+                'failed' => $outcome['failed'] ?? 0,
+                'has_photo' => $photoPath !== null,
+                'results' => $outcome['results'] ?? [],
+            ]);
         }
+
+        dispatch($job);
 
         return response()->json([
             'queued' => true,

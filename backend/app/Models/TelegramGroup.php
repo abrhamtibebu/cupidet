@@ -15,6 +15,7 @@ class TelegramGroup extends Model
         'is_active',
         'joined_at',
         'left_at',
+        'last_error',
     ];
 
     protected function casts(): array

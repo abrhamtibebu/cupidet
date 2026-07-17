@@ -28,7 +28,14 @@ class BroadcastTelegramGroupsJob implements ShouldQueue
         public ?string $photoDiskPath = null,
     ) {}
 
-    public function handle(TelegramBotService $bot): void
+    /**
+     * @return array{
+     *   sent: int,
+     *   failed: int,
+     *   results: list<array{chat_id: int, title: ?string, ok: bool, error: ?string}>
+     * }
+     */
+    public function handle(TelegramBotService $bot): array
     {
         $query = TelegramGroup::query()->orderBy('id');
 
@@ -50,65 +57,37 @@ class BroadcastTelegramGroupsJob implements ShouldQueue
 
         $sent = 0;
         $failed = 0;
+        $results = [];
 
         foreach ($query->cursor() as $group) {
-            $ok = false;
+            $outcome = $this->deliverToGroup($bot, $group->chat_id, $photoAbs, $markup);
 
-            if ($photoAbs) {
-                $captionUsed = false;
-                $text = $this->text;
-                $canCaption = $text !== '' && mb_strlen($text) <= 1024;
-
-                if ($canCaption) {
-                    $ok = $bot->sendPhoto($group->chat_id, $photoAbs, $text, $markup);
-                    $captionUsed = $ok;
-
-                    if (! $ok) {
-                        $plain = trim(html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                        if ($plain !== '') {
-                            $ok = $bot->sendPhoto($group->chat_id, $photoAbs, $plain, $markup, null);
-                            $captionUsed = $ok;
-                        }
-                    }
-                }
-
-                if (! $ok) {
-                    $ok = $bot->sendPhoto($group->chat_id, $photoAbs, null, $markup);
-                }
-
-                // If the photo went out without a caption, send the description separately
-                if ($ok && $text !== '' && ! $captionUsed) {
-                    $sentText = $bot->sendMessage($group->chat_id, $text, $markup);
-                    if (! $sentText) {
-                        $plain = trim(html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                        if ($plain !== '') {
-                            $bot->sendMessage($group->chat_id, $plain, $markup, null);
-                        }
-                    }
-                } elseif (! $ok && $text !== '') {
-                    $ok = $bot->sendMessage($group->chat_id, $text, $markup);
-                }
-            } else {
-                $ok = $this->text !== '' && $bot->sendMessage($group->chat_id, $this->text, $markup);
-                if (! $ok && $this->text !== '') {
-                    $plain = trim(html_entity_decode(strip_tags($this->text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                    if ($plain !== '') {
-                        $ok = $bot->sendMessage($group->chat_id, $plain, $markup, null);
-                    }
-                }
-            }
-
-            if ($ok) {
+            if ($outcome['ok']) {
                 $sent++;
+                $group->update([
+                    'last_error' => null,
+                    'is_active' => true,
+                    'left_at' => null,
+                ]);
             } else {
                 $failed++;
-                $group->update([
-                    'is_active' => false,
-                    'left_at' => now(),
-                ]);
+                $updates = ['last_error' => $outcome['error']];
+                // Only deactivate when the bot is truly gone from the chat
+                if ($outcome['permanent']) {
+                    $updates['is_active'] = false;
+                    $updates['left_at'] = now();
+                }
+                $group->update($updates);
             }
 
-            usleep(50_000);
+            $results[] = [
+                'chat_id' => $group->chat_id,
+                'title' => $group->title,
+                'ok' => $outcome['ok'],
+                'error' => $outcome['error'],
+            ];
+
+            usleep(80_000);
         }
 
         Log::info('Telegram group broadcast finished', [
@@ -116,6 +95,75 @@ class BroadcastTelegramGroupsJob implements ShouldQueue
             'failed' => $failed,
             'has_photo' => $photoAbs !== null,
             'preview' => mb_substr($this->text, 0, 80),
+            'results' => $results,
         ]);
+
+        return [
+            'sent' => $sent,
+            'failed' => $failed,
+            'results' => $results,
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, error: ?string, permanent: bool}
+     */
+    private function deliverToGroup(
+        TelegramBotService $bot,
+        int|string $chatId,
+        ?string $photoAbs,
+        ?array $markup,
+    ): array {
+        if ($photoAbs) {
+            $captionUsed = false;
+            $text = $this->text;
+            $canCaption = $text !== '' && mb_strlen($text) <= 1024;
+            $last = ['ok' => false, 'error' => null, 'permanent' => false];
+
+            if ($canCaption) {
+                $last = $bot->sendPhotoResult($chatId, $photoAbs, $text, $markup);
+                $captionUsed = $last['ok'];
+
+                if (! $last['ok']) {
+                    $plain = trim(html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    if ($plain !== '') {
+                        $last = $bot->sendPhotoResult($chatId, $photoAbs, $plain, $markup, null);
+                        $captionUsed = $last['ok'];
+                    }
+                }
+            }
+
+            if (! $last['ok']) {
+                $last = $bot->sendPhotoResult($chatId, $photoAbs, null, $markup);
+            }
+
+            if ($last['ok'] && $text !== '' && ! $captionUsed) {
+                $textResult = $bot->sendMessageResult($chatId, $text, $markup);
+                if (! $textResult['ok']) {
+                    $plain = trim(html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    if ($plain !== '') {
+                        $bot->sendMessageResult($chatId, $plain, $markup, null);
+                    }
+                }
+            } elseif (! $last['ok'] && $text !== '') {
+                $last = $bot->sendMessageResult($chatId, $text, $markup);
+            }
+
+            return $last;
+        }
+
+        if ($this->text === '') {
+            return ['ok' => false, 'error' => 'Empty message', 'permanent' => false];
+        }
+
+        $last = $bot->sendMessageResult($chatId, $this->text, $markup);
+        if (! $last['ok']) {
+            $plain = trim(html_entity_decode(strip_tags($this->text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if ($plain !== '') {
+                $last = $bot->sendMessageResult($chatId, $plain, $markup, null);
+            }
+        }
+
+        return $last;
     }
 }

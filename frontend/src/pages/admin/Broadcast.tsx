@@ -94,7 +94,22 @@ export function AdminBroadcastPage() {
         chatIds,
         image,
       })
-      setStatus(`Sent to ${res.count} group(s)${res.has_photo ? ' with image' : ''}.`)
+      const sent = res.sent ?? res.count
+      const failed = res.failed ?? 0
+      const failLines = (res.results || [])
+        .filter((r) => !r.ok)
+        .map((r) => `• ${r.title || r.chat_id}: ${r.error || 'failed'}`)
+      setStatus(
+        failed > 0
+          ? `Sent to ${sent}, failed ${failed}.${failLines.length ? `\n${failLines.join('\n')}` : ''}`
+          : `Sent to ${sent} group(s)${res.has_photo ? ' with image' : ''}.`,
+      )
+      if (failed > 0) {
+        setError(
+          'Some groups need the bot as admin (restricted groups only allow admins to post). Promote @cupidet_bot to admin, then retry.',
+        )
+      }
+      await load()
       if (editorRef.current) editorRef.current.innerHTML = ''
       onPickImage(null)
       if (fileRef.current) fileRef.current.value = ''
@@ -240,7 +255,7 @@ export function AdminBroadcastPage() {
           ) : null}
         </div>
         <p className="admin-muted" style={{ marginTop: '0.75rem' }}>
-          Re-add the bot to a group if it’s missing from the list. Broadcasts are queued and rate-limited.
+          Restricted groups (only admins can post) need the bot promoted to admin. Re-add the bot if a group is missing.
         </p>
       </div>
 
@@ -260,6 +275,7 @@ export function AdminBroadcastPage() {
                 <th>Chat ID</th>
                 <th>Type</th>
                 <th>Status</th>
+                <th>Last error</th>
                 <th />
               </tr>
             </thead>
@@ -279,6 +295,15 @@ export function AdminBroadcastPage() {
                   <td>{row.type}</td>
                   <td>
                     <StatusBadge status={row.is_active ? 'active' : 'inactive'} />
+                  </td>
+                  <td>
+                    {row.last_error ? (
+                      <span className="admin-error" style={{ fontWeight: 500 }}>
+                        {row.last_error}
+                      </span>
+                    ) : (
+                      <span className="admin-muted">—</span>
+                    )}
                   </td>
                   <td>
                     <div className="admin-row-actions" style={{ marginTop: 0 }}>

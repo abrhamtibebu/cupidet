@@ -17,11 +17,23 @@ class TelegramBotService
         ?array $replyMarkup = null,
         ?string $parseMode = 'HTML',
     ): bool {
+        return $this->sendMessageResult($chatId, $text, $replyMarkup, $parseMode)['ok'];
+    }
+
+    /**
+     * @return array{ok: bool, error: ?string, permanent: bool}
+     */
+    public function sendMessageResult(
+        int|string $chatId,
+        string $text,
+        ?array $replyMarkup = null,
+        ?string $parseMode = 'HTML',
+    ): array {
         $token = config('services.telegram.bot_token');
         if (! $token) {
             Log::warning('Telegram bot token missing; skip message', compact('chatId', 'text'));
 
-            return false;
+            return ['ok' => false, 'error' => 'Bot token missing', 'permanent' => false];
         }
 
         $payload = [
@@ -51,17 +63,30 @@ class TelegramBotService
         ?array $replyMarkup = null,
         ?string $parseMode = 'HTML',
     ): bool {
+        return $this->sendPhotoResult($chatId, $photoAbsolutePath, $caption, $replyMarkup, $parseMode)['ok'];
+    }
+
+    /**
+     * @return array{ok: bool, error: ?string, permanent: bool}
+     */
+    public function sendPhotoResult(
+        int|string $chatId,
+        string $photoAbsolutePath,
+        ?string $caption = null,
+        ?array $replyMarkup = null,
+        ?string $parseMode = 'HTML',
+    ): array {
         $token = config('services.telegram.bot_token');
         if (! $token) {
             Log::warning('Telegram bot token missing; skip photo', compact('chatId'));
 
-            return false;
+            return ['ok' => false, 'error' => 'Bot token missing', 'permanent' => false];
         }
 
         if (! is_readable($photoAbsolutePath)) {
             Log::error('Telegram sendPhoto: file not readable', ['path' => $photoAbsolutePath]);
 
-            return false;
+            return ['ok' => false, 'error' => 'Photo file not readable', 'permanent' => false];
         }
 
         try {
@@ -103,27 +128,37 @@ class TelegramBotService
             }
 
             $response = $pending->post("https://api.telegram.org/bot{$token}/sendPhoto", $parts);
-            $response->throw();
+            if (! $response->successful()) {
+                return $this->telegramFailure($response->json('description'), $response->json('error_code'));
+            }
 
-            return true;
-        } catch (RequestException|ConnectionException|Throwable $e) {
+            return ['ok' => true, 'error' => null, 'permanent' => false];
+        } catch (RequestException $e) {
+            $body = $e->response?->json() ?? [];
+
+            return $this->telegramFailure(
+                $body['description'] ?? $e->getMessage(),
+                $body['error_code'] ?? null,
+            );
+        } catch (ConnectionException|Throwable $e) {
             Log::error('Telegram sendPhoto failed', [
                 'chat_id' => $chatId,
                 'error' => $e->getMessage(),
             ]);
 
-            return false;
+            return ['ok' => false, 'error' => $e->getMessage(), 'permanent' => false];
         }
     }
 
     /**
      * @param  array<string, mixed>  $payload
+     * @return array{ok: bool, error: ?string, permanent: bool}
      */
-    private function postTelegram(string $method, array $payload): bool
+    private function postTelegram(string $method, array $payload): array
     {
         $token = config('services.telegram.bot_token');
         if (! $token) {
-            return false;
+            return ['ok' => false, 'error' => 'Bot token missing', 'permanent' => false];
         }
 
         try {
@@ -133,17 +168,57 @@ class TelegramBotService
             }
 
             $response = $pending->post("https://api.telegram.org/bot{$token}/{$method}", $payload);
-            $response->throw();
+            if (! $response->successful()) {
+                return $this->telegramFailure($response->json('description'), $response->json('error_code'));
+            }
 
-            return true;
-        } catch (RequestException|ConnectionException|Throwable $e) {
+            return ['ok' => true, 'error' => null, 'permanent' => false];
+        } catch (RequestException $e) {
+            $body = $e->response?->json() ?? [];
+
+            return $this->telegramFailure(
+                $body['description'] ?? $e->getMessage(),
+                $body['error_code'] ?? null,
+            );
+        } catch (ConnectionException|Throwable $e) {
             Log::error("Telegram {$method} failed", [
                 'chat_id' => $payload['chat_id'] ?? null,
                 'error' => $e->getMessage(),
             ]);
 
-            return false;
+            return ['ok' => false, 'error' => $e->getMessage(), 'permanent' => false];
         }
+    }
+
+    /**
+     * @return array{ok: bool, error: ?string, permanent: bool}
+     */
+    private function telegramFailure(?string $description, mixed $code = null): array
+    {
+        $description = trim((string) $description);
+        $lower = strtolower($description);
+        $permanent = str_contains($lower, 'kicked')
+            || str_contains($lower, 'chat not found')
+            || str_contains($lower, 'bot was blocked')
+            || str_contains($lower, 'deactivated');
+
+        $friendly = match (true) {
+            str_contains($lower, 'not enough rights') => 'Bot needs admin rights to post in this group (members cannot send messages).',
+            str_contains($lower, 'kicked') => 'Bot was removed from this group.',
+            str_contains($lower, 'chat not found') => 'Chat not found — bot may have been removed.',
+            str_contains($lower, 'have no rights') => 'Bot needs permission to post in this group.',
+            str_contains($lower, 'topic_closed') => 'Forum topic is closed.',
+            default => $description !== '' ? $description : 'Telegram send failed',
+        };
+
+        Log::warning('Telegram API failure', [
+            'code' => $code,
+            'description' => $description,
+            'friendly' => $friendly,
+            'permanent' => $permanent,
+        ]);
+
+        return ['ok' => false, 'error' => $friendly, 'permanent' => $permanent];
     }
 
     public function webAppKeyboard(string $text = 'Open Mingle 251'): array
