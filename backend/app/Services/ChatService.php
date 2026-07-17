@@ -113,12 +113,14 @@ class ChatService
         ];
     }
 
-    public function messages(User $user, int $matchId): Collection
+    public function messages(User $user, int $matchId, bool $markSeen = true): Collection
     {
         $match = $this->findAuthorizedMatch($user, $matchId);
 
-        $this->markDelivered($user, $match->id);
-        $this->markRead($user, $match->id);
+        if ($markSeen) {
+            $this->markDelivered($user, $match->id);
+            $this->markRead($user, $match->id);
+        }
 
         return Message::query()
             ->where('match_id', $match->id)
@@ -444,7 +446,7 @@ class ChatService
         // Cache state so clients without a live websocket can poll it.
         $key = $this->typingKey($match->id, $user->id);
         if ($typing) {
-            Cache::put($key, true, now()->addSeconds(8));
+            Cache::put($key, true, now()->addSeconds(5));
         } else {
             Cache::forget($key);
         }

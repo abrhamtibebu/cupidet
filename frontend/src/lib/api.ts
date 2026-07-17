@@ -160,10 +160,12 @@ export const api = {
   conversations: () => request<{ data: unknown[] }>('/conversations'),
   badges: () =>
     request<{ unread_messages: number; new_likes: number }>('/badges'),
-  getMessages: (matchId: number) =>
-    request<{ data: unknown[]; settings?: { muted: boolean; upcoming_date?: unknown } }>(
-      `/matches/${matchId}/messages`,
-    ),
+  getMessages: (matchId: number, opts?: { markSeen?: boolean }) => {
+    const mark = opts?.markSeen === false ? '?mark_seen=0' : ''
+    return request<{ data: unknown[]; settings?: { muted: boolean; upcoming_date?: unknown } }>(
+      `/matches/${matchId}/messages${mark}`,
+    )
+  },
   sendMessage: (matchId: number, body: string) =>
     request<{ message: unknown }>(`/matches/${matchId}/messages`, {
       method: 'POST',

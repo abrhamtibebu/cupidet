@@ -4,7 +4,6 @@ import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { bindConnectionState, getEcho } from '../lib/echo'
 import { useNavBadges } from '../lib/navBadges'
-import { pollMs } from '../lib/perf'
 import type { ChatMessage, ChatSettings, MatchDate, MatchItem } from '../types'
 import { IconBack } from '../components/Icons'
 import { resolveMediaUrl } from '../lib/media'
@@ -233,12 +232,25 @@ export function ChatPage() {
     setUpcomingDate((settings.upcoming_date as MatchDate) || null)
   }
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (markSeen = false) => {
     if (!id) return
-    const res = await api.getMessages(id)
-    mergeServerMessages(res.data as ChatMessage[])
+    const res = await api.getMessages(id, { markSeen })
+    const data = res.data as ChatMessage[]
+    mergeServerMessages(data)
     applySettings(res.settings as ChatSettings | undefined)
-  }, [id, mergeServerMessages])
+
+    // Lightweight seen sync without re-running mark on every poll payload.
+    if (
+      !markSeen &&
+      document.visibilityState === 'visible' &&
+      data.some((m) => m.sender_id !== userIdRef.current && !m.read_at)
+    ) {
+      void api
+        .markRead(id)
+        .then(() => refreshBadges())
+        .catch(() => undefined)
+    }
+  }, [id, mergeServerMessages, refreshBadges])
 
   const stopTypingPulse = () => {
     if (typingPulse.current) {
@@ -261,10 +273,10 @@ export function ChatPage() {
       if (inputFocused.current && bodyRef.current.trim()) {
         emitTyping(true, true)
       }
-    }, 2000)
+    }, 1200)
   }
 
-  // Always poll typing — websockets are unreliable on Render/Telegram WebView.
+  // Always poll typing fast — websockets are unreliable on Render/Telegram.
   useEffect(() => {
     if (!id) return
     let active = true
@@ -275,7 +287,7 @@ export function ChatPage() {
         if (res.typing) {
           setPeerTyping(true)
           if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
-          typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 9000)
+          typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 4000)
         } else {
           setPeerTyping(false)
         }
@@ -284,7 +296,7 @@ export function ChatPage() {
       }
     }
     void check()
-    const timer = window.setInterval(() => void check(), pollMs(2000, 3000))
+    const timer = window.setInterval(() => void check(), 1000)
     return () => {
       active = false
       window.clearInterval(timer)
@@ -317,7 +329,7 @@ export function ChatPage() {
     const boot = async () => {
       setLoading(true)
       try {
-        const msgs = await api.getMessages(id)
+        const msgs = await api.getMessages(id, { markSeen: true })
         if (!active) return
         mergeServerMessages(msgs.data as ChatMessage[])
         applySettings(msgs.settings as ChatSettings | undefined)
@@ -346,25 +358,33 @@ export function ChatPage() {
     const unbindConn = bindConnectionState((isUp) => {
       if (!active) return
       setConnected(isUp)
-      if (isUp && pollTimer) {
-        window.clearInterval(pollTimer)
-        pollTimer = window.setInterval(() => void loadMessages().catch(() => undefined), pollMs(20000, 45000))
-      }
     })
 
+    // Keep a fast poll while the chat is open. Echo events are bonus when they work;
+    // never slow the poll down just because the socket claims "connected".
     const startPolling = (ms: number) => {
       if (pollTimer) window.clearInterval(pollTimer)
       pollTimer = window.setInterval(() => {
-        void loadMessages().catch(() => undefined)
+        void loadMessages(false).catch(() => undefined)
       }, ms)
     }
-    startPolling(pollMs(4000, 8000))
+    startPolling(1500)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void loadMessages(true).catch(() => undefined)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
 
     if (!echo) {
       return () => {
         active = false
         unbindConn()
         if (pollTimer) window.clearInterval(pollTimer)
+        document.removeEventListener('visibilitychange', onVisible)
+        window.removeEventListener('focus', onVisible)
         stopTypingPulse()
       }
     }
@@ -383,7 +403,7 @@ export function ChatPage() {
           .catch(() => undefined)
       }
       if (incoming.type === 'date_proposal' || incoming.type === 'date_update') {
-        void loadMessages().catch(() => undefined)
+        void loadMessages(false).catch(() => undefined)
       }
     }
 
@@ -398,7 +418,7 @@ export function ChatPage() {
       if (typingHideTimer.current) window.clearTimeout(typingHideTimer.current)
       if (payload.typing) {
         setPeerTyping(true)
-        typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 8000)
+        typingHideTimer.current = window.setTimeout(() => setPeerTyping(false), 4000)
       } else {
         setPeerTyping(false)
       }
@@ -411,13 +431,14 @@ export function ChatPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(channel as any).subscription?.bind?.('pusher:subscription_succeeded', () => {
       setConnected(true)
-      startPolling(pollMs(20000, 45000))
     })
 
     return () => {
       active = false
       unbindConn()
       if (pollTimer) window.clearInterval(pollTimer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
       stopTypingPulse()
       emitTyping(false, true)
       channel.stopListening('.message.sent')

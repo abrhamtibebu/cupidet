@@ -23,8 +23,11 @@ class ChatController extends Controller
 
     public function index(Request $request, int $matchId, ChatService $chat): JsonResponse
     {
+        // Polling uses mark_seen=0 so we don't re-run delivered/read side-effects every 1–2s.
+        $markSeen = ! $request->has('mark_seen') || $request->boolean('mark_seen');
+
         return response()->json([
-            'data' => $chat->messages($request->user(), $matchId),
+            'data' => $chat->messages($request->user(), $matchId, $markSeen),
             'settings' => $chat->settings($request->user(), $matchId),
         ]);
     }

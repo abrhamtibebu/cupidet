@@ -85,11 +85,11 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::get('/conversations', [ChatController::class, 'conversations']);
         Route::get('/badges', [ChatController::class, 'badges']);
         Route::get('/matches/{matchId}/messages', [ChatController::class, 'index']);
-        Route::post('/matches/{matchId}/messages', [ChatController::class, 'store'])->middleware('throttle:60,1');
-        Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered'])->middleware('throttle:120,1');
-        Route::post('/matches/{matchId}/read', [ChatController::class, 'read'])->middleware('throttle:120,1');
-        Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing'])->middleware('throttle:60,1');
-        Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus'])->middleware('throttle:120,1');
+        Route::post('/matches/{matchId}/messages', [ChatController::class, 'store'])->middleware('throttle:120,1');
+        Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered'])->middleware('throttle:180,1');
+        Route::post('/matches/{matchId}/read', [ChatController::class, 'read'])->middleware('throttle:180,1');
+        Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing'])->middleware('throttle:180,1');
+        Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus'])->middleware('throttle:300,1');
         Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
         Route::get('/matches/{matchId}/settings', [ChatController::class, 'settings']);
         Route::patch('/matches/{matchId}/settings', [ChatController::class, 'updateSettings']);
