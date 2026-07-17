@@ -130,4 +130,5 @@ export type MatchItem = {
     is_mine: boolean
   } | null
   unread_count?: number
+  peer_typing?: boolean
 }

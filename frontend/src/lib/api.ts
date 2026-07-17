@@ -166,6 +166,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ body }),
     }),
+  typingStatus: (matchId: number) =>
+    request<{ typing: boolean }>(`/matches/${matchId}/typing`),
   markDelivered: (matchId: number, messageIds?: number[]) =>
     request<{ data: unknown[] }>(`/matches/${matchId}/delivered`, {
       method: 'POST',

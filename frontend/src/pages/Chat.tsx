@@ -256,6 +256,26 @@ export function ChatPage() {
     bodyRef.current = body
   }, [body])
 
+  // Typing fallback: when the websocket is down, poll the cached typing state.
+  useEffect(() => {
+    if (!id || connected) return
+    let active = true
+    const check = async () => {
+      try {
+        const res = await api.typingStatus(id)
+        if (active) setPeerTyping(res.typing)
+      } catch {
+        /* ignore */
+      }
+    }
+    void check()
+    const timer = window.setInterval(() => void check(), pollMs(3000, 4000))
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [id, connected])
+
   useEffect(() => {
     if (!id) return
     const ping = () => {

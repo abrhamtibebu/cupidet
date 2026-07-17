@@ -50,11 +50,25 @@ export function MessagesPage() {
   const navigate = useNavigate()
   const typingTimers = useRef<Record<number, number>>({})
 
+  const applyServerTyping = (list: MatchItem[]) => {
+    // Websocket-down fallback: server caches typing state for ~6s.
+    setTypingByMatch((prev) => {
+      const next = { ...prev }
+      for (const m of list) {
+        if (m.peer_typing) next[m.id] = true
+        else if (next[m.id] && !m.peer_typing) next[m.id] = false
+      }
+      return next
+    })
+  }
+
   const load = () =>
     api
       .conversations()
       .then((res) => {
-        setMatches(res.data as MatchItem[])
+        const list = res.data as MatchItem[]
+        setMatches(list)
+        applyServerTyping(list)
         void refreshBadges()
       })
       .catch(() => api.matches().then((res) => setMatches(res.data as MatchItem[])))

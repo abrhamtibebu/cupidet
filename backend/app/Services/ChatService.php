@@ -12,6 +12,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Services\TelegramNotifier;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class ChatService
@@ -51,11 +52,14 @@ class ChatService
 
         return $items->map(function (array $item) use ($user, $lastByMatch, $unreadByMatch) {
             $last = $lastByMatch->get($item['id']);
+            $otherId = (int) ($item['user']['id'] ?? 0);
 
             return [
                 ...$item,
                 'last_message' => $last ? $this->payload($last, $user->id) : null,
                 'unread_count' => (int) ($unreadByMatch[$item['id']] ?? 0),
+                'peer_typing' => $otherId > 0
+                    && (bool) Cache::get($this->typingKey($item['id'], $otherId), false),
             ];
         });
     }
@@ -225,7 +229,29 @@ class ChatService
     public function typing(User $user, int $matchId, bool $typing): void
     {
         $match = $this->findAuthorizedMatch($user, $matchId);
+
+        // Cache state so clients without a live websocket can poll it.
+        $key = $this->typingKey($match->id, $user->id);
+        if ($typing) {
+            Cache::put($key, true, now()->addSeconds(6));
+        } else {
+            Cache::forget($key);
+        }
+
         $this->safeBroadcast(new UserTyping($match->id, $user->id, $typing));
+    }
+
+    public function peerTyping(User $user, int $matchId): bool
+    {
+        $match = $this->findAuthorizedMatch($user, $matchId);
+        $other = $match->otherUser($user->id);
+
+        return (bool) Cache::get($this->typingKey($match->id, $other->id), false);
+    }
+
+    private function typingKey(int $matchId, int $userId): string
+    {
+        return "typing:{$matchId}:{$userId}";
     }
 
     /**

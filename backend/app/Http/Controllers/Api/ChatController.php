@@ -70,6 +70,13 @@ class ChatController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function typingStatus(Request $request, int $matchId, ChatService $chat): JsonResponse
+    {
+        return response()->json([
+            'typing' => $chat->peerTyping($request->user(), $matchId),
+        ]);
+    }
+
     public function presence(Request $request, int $matchId, ChatService $chat): JsonResponse
     {
         $chat->markPresence($request->user(), $matchId);

@@ -89,6 +89,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/matches/{matchId}/delivered', [ChatController::class, 'delivered'])->middleware('throttle:120,1');
         Route::post('/matches/{matchId}/read', [ChatController::class, 'read'])->middleware('throttle:120,1');
         Route::post('/matches/{matchId}/typing', [ChatController::class, 'typing'])->middleware('throttle:60,1');
+        Route::get('/matches/{matchId}/typing', [ChatController::class, 'typingStatus'])->middleware('throttle:120,1');
         Route::post('/matches/{matchId}/presence', [ChatController::class, 'presence'])->middleware('throttle:120,1');
 
         Route::patch('/notifications', [AuthController::class, 'updateNotifications'])->middleware('throttle:30,1');
