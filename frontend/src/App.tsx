@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useState, type ReactNode } from 'react'
 import { AuthProvider } from './components/AuthProvider'
-import { BrandLogo, BRAND_NAME } from './components/Brand'
+import { BrandLoadingScreen } from './components/BrandLoadingScreen'
 import { TelegramBackButton } from './components/TelegramBackButton'
 import { useAuth } from './lib/auth'
 import { NavBadgeProvider } from './lib/navBadges'
@@ -45,17 +45,7 @@ function Gate() {
   const underageBlocked = sessionStorage.getItem('cupid_underage') === '1'
 
   if (loading) {
-    return (
-      <div className="app-shell grid min-h-[100dvh] place-items-center">
-        <div className="text-center">
-          <BrandLogo size="splash" animated className="mx-auto mb-8" />
-          <p className="brand-loading-text text-sm tracking-[0.12em] text-muted uppercase">
-            Opening {BRAND_NAME}…
-          </p>
-          <div className="brand-loading-bar" aria-hidden />
-        </div>
-      </div>
-    )
+    return <BrandLoadingScreen />
   }
 
   if (underageBlocked) {
